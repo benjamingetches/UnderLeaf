@@ -23,7 +23,19 @@ const hbs = handlebars.create({
   extname: 'hbs',
   layoutsDir: __dirname + '/views/layouts',
   partialsDir: __dirname + '/views/partials',
+  helpers: {
+    not_equal: function(a, b) {
+      return a !== b;
+    },
+    equal: function(a, b) {
+      return a === b;
+    },
+    or: function(a, b) {
+      return a || b;
+    }
+  }
 });
+
 
 // database configuration
 const dbConfig = {
@@ -234,7 +246,14 @@ app.get('/get-notes', async (req, res) => {
   const user = req.session.user;
 
   try {
-    const notes = await db.any('SELECT id, title FROM notes WHERE username = $1', [user.username]);
+    const notes = await db.any(`
+      SELECT DISTINCT n.id, n.title 
+      FROM notes n
+      LEFT JOIN note_permissions np ON n.id = np.note_id
+      WHERE n.username = $1 
+      OR (np.username = $1 AND np.can_read = true)`, 
+      [user.username]
+    );
     res.json(notes); // Send the list of notes as JSON
   } catch (error) {
     console.error('Error fetching notes:', error);
@@ -245,10 +264,19 @@ app.get('/get-notes', async (req, res) => {
 // Route to get a specific note's content by ID
 app.get('/get-note/:id', async (req, res) => {
   const noteId = req.params.id;
+  const user = req.session.user;
 
   try {
-    const note = await db.one('SELECT title, content FROM notes WHERE id = $1', [noteId]);
-    res.json(note); // Send the note content and title as JSON
+    const note = await db.one(`
+      SELECT n.title, n.content, n.category, n.username, n.created_at, n.updated_at,
+             np.can_edit, np.can_read
+      FROM notes n
+      LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+      WHERE n.id = $2 
+      AND (n.username = $1 OR np.can_read = true)`, 
+      [user.username, noteId]
+    );
+    res.json(note); // Send the full note details as JSON
   } catch (error) {
     console.error('Error fetching note:', error);
     res.status(500).send('Error fetching note');

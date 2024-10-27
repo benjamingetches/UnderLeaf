@@ -29,7 +29,7 @@
               {{this.content}}
             </p>
             <div class="mt-auto">
-              <a href="/edit-note/{{this.id}}" class="btn btn-secondary btn-sm me-2">Edit</a>
+              <a href="/edit-note/{{this.id}}" class="btn btn-secondary btn-sm me-2 disabled{{#unless this.can_edit}}enabled{{/unless}}">Edit</a>
               <button class="btn btn-danger btn-sm delete-note-btn" data-note-id="{{this.id}}">Delete</button>
             </div>
           </div>

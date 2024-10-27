@@ -47,5 +47,5 @@ def test_image_processing(image_path):
 
 if __name__ == "__main__":
     # Replace with the path to your test image
-    test_image_path = "testimg2.jpg"
+    test_image_path = "testimg3.jpg"
     test_image_processing(test_image_path)

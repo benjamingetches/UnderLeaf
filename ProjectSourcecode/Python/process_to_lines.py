@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from typing import List, Tuple, Union
 import tensorflow as tf
+import pandas as pd
 
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -12,6 +13,16 @@ from torch.ao.quantization.utils import determine_qparams
 EquationElement = Union[str, List['EquationElement']]
 StructuredEquation = List[EquationElement]
 fractionID = 99
+def load_symbols_mapping(csv_path):
+    symbols_df = pd.read_csv(csv_path)
+    return symbols_df.set_index("symbol_id")["latex"].to_dict()
+
+# Specify the path to the symbols CSV and load the mapping
+symbols_csv_path = "symbols.csv"  # Replace with actual path
+index_to_latex = load_symbols_mapping(symbols_csv_path)
+
+model_path = "./3layer_model_plus_tools/3_layer_model.h5"  # Replace with the actual path to the model file
+model = tf.keras.models.load_model(model_path)
 
 
 def resize_image(image: np.ndarray, max_size: Tuple[int, int] = (800, 800)) -> np.ndarray:
@@ -157,7 +168,7 @@ def preprocess_image(image_path):
 
     return clean_binary
 
-def preprocess_char(char_image, target_size=(40, 40)):
+def preprocess_char(char_image, target_size=(32, 32)):
 
     #grayscale
     if len(char_image.shape) > 2:
@@ -174,23 +185,21 @@ def preprocess_char(char_image, target_size=(40, 40)):
     else:
         char_image = binary
 
-    # Pad the image to make it square (TODO: Improve padding)
+    # Calculate padding to make the image square, centering the character
     height, width = char_image.shape
-    if height > width:
-        diff = height - width
-        pad_left = diff // 2
-        pad_right = diff - pad_left
-        char_image = cv2.copyMakeBorder(char_image, 0, 0, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
-    elif width > height:
-        diff = width - height
-        pad_top = diff // 2
-        pad_bottom = diff - pad_top
-        char_image = cv2.copyMakeBorder(char_image, pad_top, pad_bottom, 0, 0, cv2.BORDER_CONSTANT, value=0)
+    max_dim = max(height, width)
+    pad_top = (max_dim - height) // 2
+    pad_bottom = max_dim - height - pad_top
+    pad_left = (max_dim - width) // 2
+    pad_right = max_dim - width - pad_left
 
-    # Resize to target size
+    
+    char_image = cv2.copyMakeBorder(char_image, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
+
+    # Resize to target size (32x32) for compatibility with the neural network
     char_image = cv2.resize(char_image, target_size, interpolation=cv2.INTER_AREA)
 
-    # Normalize
+    # Normalize pixel values to the range [0, 1]
     char_image = char_image.astype('float32') / 255
 
     return char_image
@@ -269,30 +278,21 @@ def process_handwritten_equation(image_path: str) -> List[np.ndarray]:
 
 def segment_characters(line_image: np.ndarray) -> List[np.ndarray]:
     """
-    Segment a line image into individual characters using sliding window approach
-    that preserves vertical alignment.
+    Segment a line image into individual characters and ensure each character is resized or padded to 32x32.
 
     :param line_image: Binary image of a single line
-    :return: List of images, each containing a single character or vertically aligned components
+    :return: List of images, each containing a single character, all sized to 32x32
     """
-    # Ensure the image is binary
     _, binary = cv2.threshold(line_image, 128, 255, cv2.THRESH_BINARY)
-
-    # Get vertical projection profile
     v_proj = np.sum(binary, axis=0)
 
-    # Find character boundaries using sliding window
-    window_size = 5  # Adjust based on your image scale
-    min_gap = 10  # Minimum gap between characters
-
+    window_size = 5
+    min_gap = 10
     char_boundaries = []
     in_char = False
     char_start = 0
 
-    # Smooth the projection profile to handle small gaps
     smooth_proj = np.convolve(v_proj, np.ones(window_size) / window_size, mode='same')
-
-    # Calculate threshold as a percentage of maximum projection
     threshold = 0.05 * np.max(smooth_proj)
 
     for i, proj in enumerate(smooth_proj):
@@ -300,50 +300,29 @@ def segment_characters(line_image: np.ndarray) -> List[np.ndarray]:
             in_char = True
             char_start = max(0, i - window_size // 2)
         elif in_char and proj <= threshold:
-            # Only end character if we have a significant gap
-            if i - char_start >= window_size:
-                # Look ahead to check if this is just a small gap
-                look_ahead = min(len(smooth_proj), i + min_gap)
-                if np.max(smooth_proj[i:look_ahead]) <= threshold:
-                    char_end = min(binary.shape[1], i + window_size // 2)
-                    char_boundaries.append((char_start, char_end))
-                    in_char = False
+            look_ahead = min(len(smooth_proj), i + min_gap)
+            if np.max(smooth_proj[i:look_ahead]) <= threshold:
+                char_end = min(binary.shape[1], i + window_size // 2)
+                char_start = max(0, char_start - 5)
+                char_end = min(binary.shape[1], char_end + 5)
+                char_boundaries.append((char_start, char_end))
+                in_char = False
 
-    # Handle last character
     if in_char:
         char_end = binary.shape[1]
         char_boundaries.append((char_start, char_end))
 
-    # Extract characters
     characters = []
     for start, end in char_boundaries:
-        # Add padding
-        pad = 5
-        start = max(0, start - pad)
-        end = min(binary.shape[1], end + pad)
-
         char_img = binary[:, start:end]
-
-        # Only add if there's actual content
         if np.sum(char_img) > 0:
             characters.append(char_img)
 
     return characters
-# Define types for our structured representation
-
-def categorize_symbol(char_image: np.ndarray) -> str:
-    """
-    Placeholder function for categorizing a symbol as special or normal.
-    This will be replaced with actual neural network logic later.
-
-    :param char_image: Image of a single character or symbol
-    :return: Category of the symbol ('normal', 'fraction', 'exponent', etc.)
-    """
-    # Placeholder logic - you'll replace this with neural network categorization
-    return 'normal'  # For now, treat everything as a normal character
 
 
-def recognize_symbol(char_image: np.ndarray) -> int:
+
+def predict_character(char_image: np.ndarray) -> int:
     """
     Placeholder function for recognizing a symbol using the appropriate neural network.
     This will be replaced with actual neural network logic later.
@@ -351,26 +330,56 @@ def recognize_symbol(char_image: np.ndarray) -> int:
     :param char_image: Image of a single character or symbol
     :param category: Category of the symbol ('normal', 'fraction', 'exponent', etc.)
     :return: Recognized symbol or structure
+    Use NABLA (upside down triangle) to designate fraction. first parentheiss is top, second is bottom.
     """
     # Placeholder logic - you'll replace this with actual symbol recognition
-    processed_char = preprocess_char(char_image, (40,40))
-    #do NN work on processed char
-    return 14  # For now, return 'x' for every symbol
+        # Reshape the character image to add batch and channel dimensions
+    ready_img = preprocess_char(char_image, (32,32))
+    input_data = np.expand_dims(ready_img, axis=(0, -1))  # Shape will be (1, 32, 32, 1)
+
+    # Make a prediction
+    prediction = model.predict(input_data)
+
+    # Get the predicted label (index of the highest probability)
+    predicted_label = np.argmax(prediction, axis=1)[0]
+    return predicted_label
 
 
-
-def detect_fraction(image):
+def predict_line_characters(line_images, return_format="latex"):
     """
-    Detect if an image contains a fraction and if so, separate numerator and denominator.
+    Takes an array of character images from a line, predicts each character, and returns either a list of LaTeX symbols
+    or a structured format.
 
-    :param image: Input image (numpy array)
-    :return: tuple (is_fraction, numerator, denominator) or (False, None, None) if not a fraction
+    :param line_images: List of 32x32 character images from a line
+    :param return_format: Output format, either "latex" for LaTeX symbols or "structured" for structured parsing
+    :return: List of predicted LaTeX symbols or a structured format for the line
     """
-    # Ensure the image is grayscale
-    if len(image.shape) > 2:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    predictions = [predict_character(char_img) for char_img in line_images]
+
+    if return_format == "latex":
+        return predictions
+    elif return_format == "structured":
+        return [{"symbol": symbol, "index": idx} for idx, symbol in enumerate(predictions)]
     else:
-        gray = image
+        raise ValueError("Invalid return_format. Choose 'latex' or 'structured'.")
 
-    # Binarize the image
-  
+
+def parse_equation(structured_line):
+    """
+    Parse a structured line of LaTeX symbols into an organized LaTeX string format for equations.
+
+    :param structured_line: List of dictionaries with LaTeX symbols and positions
+    :return: Parsed LaTeX equation string
+    """
+    equation = ""
+    for item in structured_line:
+        symbol = item["symbol"]
+        # Check for special structures like fractions or exponents and adjust syntax
+        if symbol == r"\frac":
+            # This is a placeholder for handling fractions; insert proper fraction structure
+            equation += " \\frac{}{} "  # Placeholder; update with specific logic if needed
+        elif symbol == "^":
+            equation += "^{}"  # Placeholder for exponent logic
+        else:
+            equation += f" {symbol} "
+    return equation.strip()

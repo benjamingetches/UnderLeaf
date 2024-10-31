@@ -346,6 +346,46 @@ app.post('/process-selection', async (req, res) => {
     }
 });
 
+//communities page endpoints
+// GET /communities - Retrieve a list of communities, with optional filters for privacy and creator
+app.get('/communities', async (req, res) => {
+  const { is_private, created_by } = req.query;
+
+  try {
+      // Base query to select all communities
+      let query = 'SELECT * FROM communities';
+      const queryParams = [];
+
+      // Apply filters if provided in the query string
+      if (is_private !== undefined) {
+          queryParams.push(is_private === 'true');
+          query += ` WHERE is_private = $${queryParams.length}`;
+      }
+
+      if (created_by) {
+          queryParams.push(created_by);
+          query += queryParams.length === 1 ? ' WHERE' : ' AND';
+          query += ` created_by = $${queryParams.length}`;
+      }
+
+      console.log('Executing query:', query, 'with parameters:', queryParams); // Log query and params for debugging
+
+      // Execute the query with applied parameters
+      const communities = await db.any(query, queryParams);
+      res.status(200).json({
+          success: true,
+          data: communities
+      });
+  } catch (error) {
+      console.error('Error fetching communities:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Server error while fetching communities'
+      });
+  }
+});
+
+
 
 // *****************************************************
 // <!-- Section 5 : Start Server-->

@@ -1,0 +1,160 @@
+<style>
+
+    
+    body {
+        background-color: #f5f5f5;
+    }
+
+    .scan-container {
+        display: flex;
+        padding: 20px;
+        gap: 20px;
+        min-height: calc(100vh - 150px);
+    }
+
+    .scan-section, .results-section {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .instructions-card {
+        flex: 1;
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .upload-section {
+        flex: 1;
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .video-container {
+        margin-top: 20px;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 4px;
+        padding: 20px;
+        text-align: center;
+        margin: 20px 0;
+        cursor: pointer;
+    }
+
+    .upload-area:hover {
+        border-color: #007bff;
+    }
+
+    .preview-image {
+        max-width: 100%;
+        max-height: 300px;
+        margin-top: 20px;
+        display: none;
+    }
+</style>
+
+<div class="container">
+    <h1 class="mt-4 mb-4">Handwritten LaTeX Scanner</h1>
+    
+    <div class="scan-container">
+        <!-- Instructions Card -->
+        <div class="instructions-card">
+            <h3>How to Use the Scanner</h3>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">1. Write your LaTeX equations clearly on white paper</li>
+                <li class="list-group-item">2. Ensure good lighting when taking the photo</li>
+                <li class="list-group-item">3. Keep the paper flat and aligned</li>
+                <li class="list-group-item">4. Ensure proper spacing between characters, especially parentheses</li>
+                <li class="list-group-item">5. Ensure photo only contains paper and paper only</li>
+                <li class="list-group-item">6. For characters with super/subscripts, use parentheses to group those terms, see video</li>
+                <li class="list-group-item">7. For exponents, use the caret symbol ^, followed by item in parentheses, see video</li>
+                <li class="list-group-item">8. For fractions, use the nabla symbol, followed by numerator and denominator, see video</li>
+                <li class="list-group-item">9. For square roots, use it's appropriate power</li>
+                <li class="list-group-item">10. Upload the image using the upload button</li>
+                <li class="list-group-item">11. Review the generated LaTeX code</li>
+            </ul>
+
+            <div class="video-container">
+                <p class="text-muted">Tutorial video coming soon...</p>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h3>Upload Image</h3>
+            <form id="scanForm" enctype="multipart/form-data">
+                <div class="upload-area" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                    <p>Drag and drop your image here or click to select</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
+                <img id="previewImage" class="preview-image" alt="Preview">
+                <button type="submit" class="btn btn-primary" disabled>Process Image</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewImage = document.getElementById('previewImage');
+    const submitButton = document.querySelector('button[type="submit"]');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#007bff';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = '#ccc';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#ccc';
+        const file = e.dataTransfer.files[0];
+        handleFile(file);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        handleFile(file);
+    });
+
+    function handleFile(file) {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+                submitButton.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    document.getElementById('scanForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        // Add processing logic here
+    });
+</script>

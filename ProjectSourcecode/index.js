@@ -180,9 +180,14 @@ app.get('/edit-note/:id', async (req, res) => {
 app.get('/notes', async (req, res) => {
     // get the user from the session, get their notes, pass as context to the page
     const user = req.session.user;
-    const notes = await db.any('SELECT id, title FROM notes WHERE username = $1', [
-        user.username,
-    ]);
+    const notes = await db.any(`
+      SELECT DISTINCT n.id, n.title 
+      FROM notes n
+      LEFT JOIN note_permissions np ON n.id = np.note_id
+      WHERE n.username = $1 
+      OR (np.username = $1 AND np.can_read = true)`, 
+      [user.username]
+    );
     res.render('pages/notes', { user, notes });
 });
 

@@ -11,6 +11,8 @@
 <!-- Bootstrap JS Bundle (includes Popper) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
 <style>
 .latex-editor-container {
@@ -57,10 +59,52 @@
 
 /* Remove bottom margin from editor-header to prevent extra space */
 
-.preview-header {
+.preview-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.preview-header-left {
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 10px;
+}
+
+.preview-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.preview-action-btn {
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.preview-action-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.ai-edit-btn {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ai-edit-btn.active {
+  background-color: #28a745;
 }
 
 body {
@@ -118,6 +162,103 @@ body {
   }
 }
 
+/* Modal Styles */
+.modal-content {
+  border-radius: 8px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  border-bottom: 2px solid #e9ecef;
+}
+
+.selected-content {
+  max-height: 150px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  background-color: #f8f9fa;
+  white-space: pre-wrap;
+}
+
+.instruction-list {
+  padding-left: 20px;
+  color: #666;
+}
+
+.instruction-list li {
+  margin-bottom: 8px;
+}
+
+.context-input-container {
+  background-color: #fff;
+  border-radius: 6px;
+}
+
+#contextInput {
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  resize: vertical;
+  font-size: 0.95em;
+}
+
+#contextInput:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.modal-footer {
+  border-top: 2px solid #e9ecef;
+}
+
+#submitContext {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+#submitContext i {
+  margin-right: 8px;
+}
+
+/* Add these new styles */
+.highlighted-selection {
+  background-color: rgba(144, 238, 144, 0.3); /* Soft lime green */
+  transition: background-color 0.3s ease;
+}
+
+.selection-alert {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selection-alert i {
+  color: #4caf50;
+  font-size: 1.2em;
+}
+
+/* Update modal styles */
+#contextModal .modal-dialog {
+  position: absolute;
+  margin: 0;
+  top: 50%;
+  left: 20px; /* Distance from left edge */
+  transform: translateY(-50%);
+  width: calc(50% - 40px); /* Match editor width, accounting for padding */
+  max-width: none;
+}
+
+/* Update highlighting styles */
+.preview-highlight {
+  background-color: rgba(144, 238, 144, 0.3);
+  transition: background-color 0.3s ease;
+}
+
 </style>
 
 <!-- Editor and Preview Containers -->
@@ -161,30 +302,66 @@ body {
 
   <!-- Preview Section -->
   <div class="preview-container">
-    <div class="preview-header">Preview</div>
+    <div class="preview-header-container">
+      <div class="preview-header-left">Preview</div>
+      <div class="preview-header-actions">
+        <button class="preview-action-btn" id="download-preview">
+          <i class="fas fa-download"></i>
+        </button>
+        <button class="preview-action-btn" id="share-preview">
+          <i class="fas fa-share-alt"></i>
+        </button>
+        <button class="ai-edit-btn" id="ai-edit-btn">
+          Highlight text for AI editing
+        </button>
+      </div>
+    </div>
     <div id="latex-preview" class="preview">
       <!-- Rendered HTML will appear here -->
     </div>
   </div>
 </div>
 
-<!-- Context Modal (for when user highlights sections of the preview) -->
+<!-- Replace the existing modal with this updated version -->
 <div class="modal fade" id="contextModal" tabindex="-1" aria-labelledby="contextModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <!-- Modal Header -->
-      <div class="modal-header">
-        <h5 class="modal-title" id="contextModalLabel">Provide Context</h5>
+      <div class="modal-header bg-light">
+        <h5 class="modal-title" id="contextModalLabel">AI LaTeX Editor</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <!-- Modal Body -->
       <div class="modal-body">
-        <textarea id="contextInput" class="form-control" rows="4" placeholder="Describe the issue or provide context here..."></textarea>
+        <div class="selection-alert">
+          <i class="fas fa-check-circle"></i>
+          <span>Your selection is highlighted in the preview panel</span>
+        </div>
+
+        <div class="instruction-container mb-4">
+          <h6 class="fw-bold"><i class="fas fa-info-circle text-primary"></i> How this works:</h6>
+          <ol class="instruction-list">
+            <li>Your selected content is highlighted in the preview panel</li>
+            <li>Describe what changes you'd like to make to this LaTeX content</li>
+            <li>The AI will suggest improvements to your LaTeX code</li>
+          </ol>
+        </div>
+
+        <div class="context-input-container">
+          <label for="contextInput" class="form-label fw-bold">
+            What changes would you like to make?
+          </label>
+          <textarea 
+            id="contextInput" 
+            class="form-control" 
+            rows="4" 
+            placeholder="Example: 'Fix the equation formatting', 'Add proper citations', 'Convert this to a table'..."
+          ></textarea>
+        </div>
       </div>
-      <!-- Modal Footer -->
-      <div class="modal-footer">
-        <button type="button" id="submitContext" class="btn btn-primary">Submit</button>
+      <div class="modal-footer bg-light">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="submitContext" class="btn btn-primary">
+          <i class="fas fa-magic"></i> Generate Changes
+        </button>
       </div>
     </div>
   </div>
@@ -415,106 +592,149 @@ const preview = document.getElementById('latex-preview');
   // needed for storing the selected HTML
   let storedSelectedHtml = '';
 
+  const aiEditBtn = document.getElementById('ai-edit-btn');
+  let isTextSelected = false;
 
+  let highlightedRange = null;
 
-  // Function to handle selection changes, this collects the selected HTML, and displays the action button
+  function clearHighlight() {
+    const highlights = preview.querySelectorAll('.preview-highlight');
+    highlights.forEach(highlight => {
+      const parent = highlight.parentNode;
+      parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+      parent.normalize(); // Merge adjacent text nodes
+    });
+    highlightedRange = null;
+  }
+
+  function highlightSelection(range) {
+    clearHighlight(); // Clear any existing highlights
+    
+    // Create a document fragment with the highlighted content
+    const fragment = range.cloneContents();
+    const wrapper = document.createElement('span');
+    wrapper.classList.add('preview-highlight');
+    wrapper.appendChild(fragment);
+    
+    range.deleteContents();
+    range.insertNode(wrapper);
+    
+    // Store the range for later reference
+    highlightedRange = range;
+    
+    // Clear the user's selection
+    window.getSelection().removeAllRanges();
+  }
+
   function onSelectionChange() {
-    const selectedHtml = getSelectedHtml();
-    if (selectedHtml) {
-      storedSelectedHtml = selectedHtml; // Store the selected HTML
-      positionActionButton();
-      actionButton.style.display = 'block';
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    
+    if (selectedText && preview.contains(selection.anchorNode) && preview.contains(selection.focusNode)) {
+      if (!isTextSelected) {
+        aiEditBtn.textContent = 'Edit w/ AI';
+        aiEditBtn.classList.add('active');
+        isTextSelected = true;
+        storedSelectedHtml = getSelectedHtml();
+        
+        // Highlight the selection
+        highlightSelection(selection.getRangeAt(0));
+      }
     } else {
-      storedSelectedHtml = ''; // Clear the stored selection
-      actionButton.style.display = 'none';
+      if (!highlightedRange) { // Only reset if we're not maintaining a highlight
+        if (isTextSelected) {
+          aiEditBtn.textContent = 'Highlight text for AI editing';
+          aiEditBtn.classList.remove('active');
+          isTextSelected = false;
+          storedSelectedHtml = '';
+        }
+      }
     }
   }
 
-  // Add event listeners to the preview
+  // Add event listeners for selection changes
   preview.addEventListener('mouseup', onSelectionChange);
   preview.addEventListener('keyup', onSelectionChange);
 
-  // Create the action button
-  const actionButton = document.createElement('button');
-  actionButton.textContent = 'Explain Issues';
-  actionButton.style.display = 'none'; // Initially hidden
-  actionButton.style.position = 'absolute';
-  actionButton.style.zIndex = '1000'; // Ensure the button appears above other elements
-  actionButton.classList.add('btn', 'btn-warning'); // Use Bootstrap styling
-
-  // Append the button to the body
-  document.body.appendChild(actionButton);
-
-  // Function to position the action button near the selection
-  function positionActionButton() {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      // Position the button below the selection
-      actionButton.style.top = `${rect.bottom + window.scrollY}px`;
-      actionButton.style.left = `${rect.left + window.scrollX}px`;
+  // Update the AI edit button click handler
+  aiEditBtn.addEventListener('click', () => {
+    if (isTextSelected) {
+      const contextModal = new bootstrap.Modal(document.getElementById('contextModal'));
+      contextModal.show();
     }
-  }
+  });
 
-  // Event handler for the action button click
-actionButton.addEventListener('click', () => {
-  // Show the context input modal
-  const contextModal = new bootstrap.Modal(document.getElementById('contextModal'));
-  contextModal.show();
+  // Add handlers for download and share buttons
+  document.getElementById('download-preview').addEventListener('click', () => {
+    // Implement download functionality
+    console.log('Download clicked');
+  });
 
-  // Optionally, hide the action button while the modal is open
-  actionButton.style.display = 'none';
-});
+  document.getElementById('share-preview').addEventListener('click', () => {
+    // Implement share functionality
+    console.log('Share clicked');
+  });
 
-// Event handler for the context modal submission
-document.getElementById('submitContext').addEventListener('click', async () => {
-  const selectedHtml = storedSelectedHtml;
-  const latexSource = editor.getValue();
-  const context = document.getElementById('contextInput').value.trim();
+  // Event handler for the context modal submission
+  document.getElementById('submitContext').addEventListener('click', async () => {
+    const latexSource = editor.getValue();
+    const context = document.getElementById('contextInput').value.trim();
 
-  // Prepare the data to be sent to the LLM
-  const data = {
-    selectedHtml: selectedHtml,
-    latexSource: latexSource,
-    context: context,
-  };
+    // Prepare the data to be sent to the LLM
+    const data = {
+      selectedHtml: storedSelectedHtml,
+      latexSource: latexSource,
+      context: context,
+    };
 
-  try {
-    const response = await fetch('/process-selection', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch('/process-selection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      const updatedLatex = result.updatedLatex;
-      // Update the editor with the new LaTeX code
-      editor.setValue(updatedLatex);
-
-      // Re-render the preview
-      renderLaTeX();
-    } else {
-      alert('Error processing your request.');
+      if (response.ok) {
+        const result = await response.json();
+        const updatedLatex = result.updatedLatex;
+        editor.setValue(updatedLatex);
+        renderLaTeX();
+      } else {
+        alert('Error processing your request.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred while processing your request.');
     }
-  } catch (error) {
-    console.error('Error:', error);
-    alert('An error occurred while processing your request.');
-  }
 
-  // Hide the modal after submission
-  const contextModalEl = document.getElementById('contextModal');
-  const contextModal = bootstrap.Modal.getInstance(contextModalEl);
-  contextModal.hide();
+    // Clean up
+    clearHighlight();
+    
+    // Hide modal
+    const contextModal = bootstrap.Modal.getInstance(document.getElementById('contextModal'));
+    contextModal.hide();
+    
+    // Reset states
+    document.getElementById('contextInput').value = '';
+    aiEditBtn.textContent = 'Highlight text for AI editing';
+    aiEditBtn.classList.remove('active');
+    isTextSelected = false;
+  });
 
-  // Clear the context input for future use
-  document.getElementById('contextInput').value = '';
-
-
-});
-
+  // Update the modal hide handler
+  document.getElementById('contextModal').addEventListener('hidden.bs.modal', function () {
+    clearHighlight();
+    document.getElementById('contextInput').value = '';
+    
+    // Reset button state
+    aiEditBtn.textContent = 'Highlight text for AI editing';
+    aiEditBtn.classList.remove('active');
+    isTextSelected = false;
+    
+    // Re-render the preview
+    renderLaTeX();
+  });
 
 </script>

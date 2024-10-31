@@ -666,8 +666,38 @@ const preview = document.getElementById('latex-preview');
 
   // Add handlers for download and share buttons
   document.getElementById('download-preview').addEventListener('click', () => {
-    // Implement download functionality
-    console.log('Download clicked');
+    const latexContent = editor.getValue();
+    const titleInput = document.getElementById('note-title');
+    let fileName = titleInput.value.trim();
+    
+    // If no title is set, use a default name
+    if (!fileName) {
+      fileName = 'untitled';
+    }
+    
+    // Ensure the file has a .tex extension
+    if (!fileName.endsWith('.tex')) {
+      fileName += '.tex';
+    }
+    
+    // Create a Blob containing the LaTeX content
+    const blob = new Blob([latexContent], { type: 'text/plain' });
+    
+    // Create a temporary URL for the Blob
+    const url = window.URL.createObjectURL(blob);
+    
+    // Create a temporary link element
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    
+    // Append the link to the document, click it, and remove it
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    
+    // Clean up
+    document.body.removeChild(downloadLink);
+    window.URL.revokeObjectURL(url);
   });
 
   document.getElementById('share-preview').addEventListener('click', () => {

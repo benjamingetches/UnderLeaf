@@ -288,7 +288,21 @@ app.get('/get-note/:id', async (req, res) => {
   }
 });
 
+app.get('/scan', (req, res) => {
+  const user = req.session.user;
+  res.render('pages/scan', { user });
+});
 
+// TODO: Implement image processing logic using process_to_lines.py
+// app.post('/process-scan', async (req, res) => {
+//   try {
+//       // TODO: Implement image processing logic using process_to_lines.py
+      //res.json({ success: true, message: 'Image processed successfully' });
+  //} catch (error) {
+      //console.error('Error processing image:', error);
+     // res.status(500).json({ success: false, message: 'Error processing image' });
+  //}
+//});
 // Route to hit GPT3.5 turbo API
 app.post('/process-selection', async (req, res) => {
   const { selectedHtml, latexSource, context } = req.body;

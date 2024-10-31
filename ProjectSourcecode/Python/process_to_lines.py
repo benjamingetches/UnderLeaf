@@ -3,7 +3,18 @@ import numpy as np
 from typing import List, Tuple, Union
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
 
+def plot_processed_image(char_img, title="Processed Image"):
+    """
+    Plots a single processed character image to visualize what is being passed to the model.
+    :param char_img: Preprocessed 32x32 numpy array character image
+    :param title: Title of the plot
+    """
+    plt.imshow(char_img.squeeze(), cmap="gray")
+    plt.title(title)
+    plt.axis("off")
+    plt.show()
 from PIL import Image, ImageDraw, ImageFont
 import random
 import math
@@ -22,7 +33,7 @@ symbols_csv_path = "symbols.csv"  # Replace with actual path
 index_to_latex = load_symbols_mapping(symbols_csv_path)
 
 model_path = "./3layer_model_plus_tools/3_layer_model.h5"  # Replace with the actual path to the model file
-model = tf.keras.models.load_model(model_path)
+model = tf.keras.models.load_model(model_path, compile=False)
 
 
 def resize_image(image: np.ndarray, max_size: Tuple[int, int] = (800, 800)) -> np.ndarray:
@@ -169,15 +180,14 @@ def preprocess_image(image_path):
     return clean_binary
 
 def preprocess_char(char_image, target_size=(32, 32)):
-
-    #grayscale
+    # Ensure grayscale format
     if len(char_image.shape) > 2:
         char_image = cv2.cvtColor(char_image, cv2.COLOR_BGR2GRAY)
 
-    # Binarize
+    # Binarize (invert colors if needed for black text on white background)
     _, binary = cv2.threshold(char_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # bounding box the char
+    # Find bounding box around the character to crop tightly
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
         x, y, w, h = cv2.boundingRect(max(contours, key=cv2.contourArea))
@@ -185,25 +195,30 @@ def preprocess_char(char_image, target_size=(32, 32)):
     else:
         char_image = binary
 
-    # Calculate padding to make the image square, centering the character
+    # Step 1: Resize while preserving aspect ratio
+    aspect_ratio = char_image.shape[1] / char_image.shape[0]  # width / height
+    if aspect_ratio > 1:  # Wide image
+        new_width = target_size[1]
+        new_height = int(new_width / aspect_ratio)
+    else:  # Tall image
+        new_height = target_size[0]
+        new_width = int(new_height * aspect_ratio)
+
+    char_image = cv2.resize(char_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    # Step 2: Add padding to make the image exactly 32x32
     height, width = char_image.shape
-    max_dim = max(height, width)
-    pad_top = (max_dim - height) // 2
-    pad_bottom = max_dim - height - pad_top
-    pad_left = (max_dim - width) // 2
-    pad_right = max_dim - width - pad_left
+    pad_top = (target_size[0] - height) // 2
+    pad_bottom = target_size[0] - height - pad_top
+    pad_left = (target_size[1] - width) // 2
+    pad_right = target_size[1] - width - pad_left
 
-    
-    char_image = cv2.copyMakeBorder(char_image, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
-
-    # Resize to target size (32x32) for compatibility with the neural network
-    char_image = cv2.resize(char_image, target_size, interpolation=cv2.INTER_AREA)
+    char_image = cv2.copyMakeBorder(char_image, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=255)
 
     # Normalize pixel values to the range [0, 1]
     char_image = char_image.astype('float32') / 255
 
     return char_image
-
 
 def segment_lines(binary_image: np.ndarray) -> List[np.ndarray]:
     """
@@ -335,13 +350,16 @@ def predict_character(char_image: np.ndarray) -> int:
     # Placeholder logic - you'll replace this with actual symbol recognition
         # Reshape the character image to add batch and channel dimensions
     ready_img = preprocess_char(char_image, (32,32))
+    plot_processed_image(ready_img, title="Processed Input to Model")
     input_data = np.expand_dims(ready_img, axis=(0, -1))  # Shape will be (1, 32, 32, 1)
 
     # Make a prediction
+    model.summary()
     prediction = model.predict(input_data)
 
     # Get the predicted label (index of the highest probability)
     predicted_label = np.argmax(prediction, axis=1)[0]
+
     return predicted_label
 
 
@@ -364,6 +382,7 @@ def predict_line_characters(line_images, return_format="latex"):
         raise ValueError("Invalid return_format. Choose 'latex' or 'structured'.")
 
 
+
 def parse_equation(structured_line):
     """
     Parse a structured line of LaTeX symbols into an organized LaTeX string format for equations.
@@ -383,3 +402,7 @@ def parse_equation(structured_line):
         else:
             equation += f" {symbol} "
     return equation.strip()
+
+
+
+#binary, segment lines, for each line, seg chars, then predict line char. Returned a list of predictions. Then, call parse

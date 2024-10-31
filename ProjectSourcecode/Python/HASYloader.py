@@ -7,7 +7,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from hasy_tools import load_images_and_labels  # Assuming this function is in hasy_tools.py
 
-
+#l2 regulations mwiz, wastedecay, rustnet
 
 
 class HASYv2Loader:

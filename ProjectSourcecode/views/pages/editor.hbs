@@ -298,8 +298,18 @@ body {
             New Note
           </button>
           <ul class="dropdown-menu" aria-labelledby="new-note-btn">
-            <li><a class="dropdown-item" href="#" id="new-blank">New from Blank</a></li>
-            <li><a class="dropdown-item" href="#" id="new-from-text">New from Text</a></li>
+            <li><a class="dropdown-item" href="#" id="new-blank">
+              <i class="fas fa-file"></i>
+              <span>From Blank</span>
+            </a></li>
+            <li><a class="dropdown-item" href="#" id="new-from-text">
+              <i class="fas fa-font"></i>
+              <span>From Text</span>
+            </a></li>
+            <li><a class="dropdown-item" href="/scan" id="new-from-photo">
+              <i class="fas fa-camera"></i>
+              <span>From Photo</span>
+            </a></li>
           </ul>
         </div>
         <!-- Save LaTeX Button -->
@@ -623,25 +633,31 @@ document.getElementById('new-blank').addEventListener('click', () => {
 
 document.getElementById('new-from-text').addEventListener('click', () => {
   // We'll implement this functionality later
+  // TODO: Chris/Harrison
+  // GPT 3.5 call already exists for the rewrite feature, probably can reuse the code in index.js
   alert('This feature is coming soon!');
 });
+
+
+
 
 const preview = document.getElementById('latex-preview');
 
   // Function to get the selected HTML within the preview
-  function getSelectedHtml() {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      // Check if the selection is within the preview area
-      if (preview.contains(selection.anchorNode) && preview.contains(selection.focusNode)) {
-        const range = selection.getRangeAt(0);
-        const container = document.createElement('div');
-        container.appendChild(range.cloneContents());
-        return container.innerHTML;
-      }
+function getSelectedHtml() {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    // Check if the selection is within the preview area
+    if (preview.contains(selection.anchorNode) && preview.contains(selection.focusNode)) {
+      const range = selection.getRangeAt(0);
+      const container = document.createElement('div');
+      container.appendChild(range.cloneContents());
+      return container.innerHTML;
     }
-    return '';
   }
+  return '';
+}
+
 
   // needed for storing the selected HTML
   let storedSelectedHtml = '';

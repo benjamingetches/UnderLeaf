@@ -1,0 +1,290 @@
+{{> message}}
+
+<section>
+  <div class="container {{#if isRegister}}active{{/if}}">
+    <div class="user signinBx">
+      <div class="imgBx">
+        <img src="https://placehold.co/600x400/accaa1/ffffff?text=UnderLeaf" alt="UnderLeaf Logo Placeholder" />
+      </div>
+      <div class="formBx">
+        <form action="/login" method="POST">
+          <h2>Sign In</h2>
+          {{#if loginError}}
+            <div class="alert alert-danger">{{loginError}}</div>
+          {{/if}}
+          <input type="text" name="username" placeholder="Username" required />
+          <input type="password" name="password" placeholder="Password" required />
+          <input type="submit" value="Login" />
+          <p class="signup">
+            Don't have an account?
+            <a href="/register">Sign Up.</a>
+          </p>
+        </form>
+      </div>
+    </div>
+    <div class="user signupBx">
+      <div class="formBx">
+        <form action="/register" method="POST">
+          <h2>Create an account</h2>
+          {{#if registerError}}
+            <div class="alert alert-danger">{{registerError}}</div>
+          {{/if}}
+          <input type="text" name="username" placeholder="Username" required />
+          <input type="email" name="email" placeholder="Email Address" required />
+          <input type="password" name="password" placeholder="Password" required />
+          <input type="submit" value="Sign Up" />
+          <p class="signup">
+            Already have an account?
+            <a href="/login">Sign in.</a>
+          </p>
+        </form>
+      </div>
+      <div class="imgBx">
+        <img src="https://placehold.co/600x400/bcecac/ffffff?text=Welcome" alt="Welcome Image" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+section {
+  position: relative;
+  min-height: 100vh;
+  background-color: #accaa1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+section .container {
+  position: relative;
+  width: 800px;
+  height: 500px;
+  background: #fff;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+section .container .user {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+section .container .user .imgBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  background: #bcecac;
+  overflow: hidden;
+}
+
+section .container .user .imgBx img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+section .container .user .formBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  transition: 0.5s;
+}
+
+section .container .user .formBx form h2 {
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+section .container .user .formBx form input {
+  position: relative;
+  width: 100%;
+  padding: 10px;
+  background: #f5f5f5;
+  color: #333;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  margin: 8px 0;
+  font-size: 14px;
+  letter-spacing: 1px;
+  font-weight: 300;
+  border-radius: 5px;
+}
+
+section .container .user .formBx form input[type='submit'] {
+  max-width: 100px;
+  background: #accaa1;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  transition: 0.5s;
+}
+
+section .container .user .formBx form input[type='submit']:hover {
+  background: #bcecac;
+}
+
+section .container .user .formBx form .signup {
+  position: relative;
+  margin-top: 20px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #555;
+  text-transform: uppercase;
+  font-weight: 300;
+}
+
+section .container .user .formBx form .signup a {
+  font-weight: 600;
+  text-decoration: none;
+  color: #accaa1;
+}
+
+section .container .signupBx {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row-reverse;
+  transform: translateX(100%);
+  transition: 0.5s ease-in-out;
+  pointer-events: none;
+}
+
+section .container.active .signupBx {
+  transform: translateX(0);
+  pointer-events: all;
+}
+
+section .container .signupBx .formBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  transition: 0.5s ease-in-out;
+}
+
+section .container .signupBx .imgBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  transition: 0.5s ease-in-out;
+}
+
+section .container .signinBx {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+section .container .signinBx .formBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  transition: 0.5s ease-in-out;
+  z-index: 1;
+}
+
+section .container .signinBx .imgBx {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  transition: 0.5s ease-in-out;
+}
+
+section .container.active .signinBx {
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+section .container.active .signupBx {
+  transform: translateX(0);
+  pointer-events: all;
+}
+
+@media (max-width: 991px) {
+  section .container {
+    max-width: 400px;
+  }
+
+  section .container .imgBx {
+    display: none;
+  }
+
+  section .container .user .formBx {
+    width: 100%;
+  }
+
+  section .container.active .signinBx {
+    transform: translateX(-100%);
+  }
+
+  section .container.active .signupBx {
+    transform: translateX(0);
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.querySelector('.container');
+  const toggleLinks = document.querySelectorAll('.toggle-form');
+
+  toggleLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent the click from bubbling up to the form
+      container.classList.toggle('active');
+    });
+  });
+});
+
+
+function handleSubmit(event) {
+  if (!event.submitter || !event.submitter.matches('input[type="submit"]')) {
+    // If the form wasn't submitted via the submit button, prevent submission
+    event.preventDefault();
+  }
+}
+</script> 

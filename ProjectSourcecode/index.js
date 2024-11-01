@@ -119,67 +119,111 @@ const openai = new OpenAIApi(configuration);
 // <!-- Section 4 : API Routes -->
 // *****************************************************
 
-// TODO - Include your API routes here
+// Add these before any middleware or routes
+app.use((req, res, next) => {
+    console.log('Incoming request:', {
+        path: req.path,
+        method: req.method,
+        session: req.session,
+        body: req.method === 'POST' ? req.body : undefined
+    });
+    next();
+});
+
+const auth = (req, res, next) => {
+    console.log('Auth middleware:', {
+        path: req.path,
+        isAuthenticated: !!req.session.user,
+        publicPath: ['/login', '/register', '/logout', '/auth'].includes(req.path)
+    });
+    
+    const publicPaths = ['/login', '/register', '/logout'];
+    if (!req.session.user && !publicPaths.includes(req.path)) {
+        console.log('Redirecting to login - unauthorized access');
+        return res.redirect('/login');
+    }
+    next();
+};
+
+// Authentication middleware
+app.use(auth);
+
+// Then define your routes
 app.get('/', (req, res) => {
-    res.redirect('/login'); //this will call the /login route in the API
+    if (req.session.user) {
+        return res.redirect('/editor');
+    }
+    res.redirect('/login');
 });
   
 app.get('/login', (req, res) => {
-    res.render('pages/login');
+    if (req.session.user) {
+        return res.redirect('/editor');
+    }
+    res.render('pages/auth', { 
+        isRegister: false,
+        loginError: req.query.error
+    });
+});
+
+app.get('/register', (req, res) => {
+    if (req.session.user) {
+        return res.redirect('/editor');
+    }
+    res.render('pages/auth', { 
+        isRegister: true,
+        registerError: req.query.error
+    });
 });
 
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    // check if the user exists
-    const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [
-        username,
-    ]);
-    if (!user) {
-        res.render('pages/login', { message: 'Invalid username', error: "yes" });
-        return;
-    }
-    // check if the password is correct
-    const passwordValid = await bcrypt.compare(password, user.password);
-    if (!passwordValid) {
-        res.render('pages/login', { message: 'Invalid password', error: "yes" });
-        return;
-    }
-    // set the session
-    req.session.user = user;
-    req.session.save();
-    res.redirect('/editor');
+    try {
+        const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
         
-});
-
-const auth = (req, res, next) => {
-    const publicPaths = ['/login', '/register', '/logout'];
-    if (!req.session.user && !publicPaths.includes(req.path)) {
-      // Default to login page.
-      return res.redirect('/login');
+        if (!user) {
+            return res.render('pages/auth', { 
+                loginError: 'Invalid username',
+                isRegister: false
+            });
+        }
+        
+        const passwordValid = await bcrypt.compare(password, user.password);
+        if (!passwordValid) {
+            return res.render('pages/auth', { 
+                loginError: 'Invalid password',
+                isRegister: false
+            });
+        }
+        
+        req.session.user = user;
+        req.session.save();
+        res.redirect('/editor');
+    } catch (error) {
+        console.error('Login error:', error);
+        res.render('pages/auth', { 
+            loginError: 'An error occurred during login',
+            isRegister: false
+        });
     }
-    next();
-  };
-  
-  // Authentication Required
-app.use(auth);
-
-app.get('/register', (req, res) => {
-    console.log("Register page requested");
-    res.render('pages/register');
 });
 
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
     try {
+        const hashedPassword = await bcrypt.hash(password, 10);
         await db.none('INSERT INTO users(username, email, password) VALUES($1, $2, $3)', [
             username,
             email,
             hashedPassword,
         ]);
-        res.redirect('/login');
+        res.redirect('/login?message=Registration successful! Please login.');
     } catch (error) {
-        res.render('pages/register', { message: 'Username/email already exists', error: error });
+        console.error('Registration error:', error);
+        res.render('pages/auth', { 
+            registerError: 'Username/email already exists',
+            isRegister: true
+        });
     }
 });
 

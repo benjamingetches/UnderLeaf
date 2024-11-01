@@ -287,7 +287,21 @@ body {
             </ul>
         </div>
         <!-- New Note Button -->
-        <button id="new-note-btn" class="btn btn-success">New Note</button>
+        <div class="dropdown">
+          <button 
+            id="new-note-btn" 
+            class="btn btn-success dropdown-toggle" 
+            type="button" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
+          >
+            New Note
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="new-note-btn">
+            <li><a class="dropdown-item" href="#" id="new-blank">New from Blank</a></li>
+            <li><a class="dropdown-item" href="#" id="new-from-text">New from Text</a></li>
+          </ul>
+        </div>
         <!-- Save LaTeX Button -->
         <button id="save-latex" type="button" class="btn btn-primary">Save LaTeX</button>
         </div>
@@ -598,13 +612,18 @@ document.getElementById('notes-dropdown').addEventListener('click', async functi
   }
 });
 
-document.getElementById('new-note-btn').addEventListener('click', () => {
+document.getElementById('new-blank').addEventListener('click', () => {
   // Clear the title input
   document.getElementById('note-title').value = '';
   // Clear the editor content
   editor.setValue('');
   // Optionally re-render the preview
   renderLaTeX();
+});
+
+document.getElementById('new-from-text').addEventListener('click', () => {
+  // We'll implement this functionality later
+  alert('This feature is coming soon!');
 });
 
 const preview = document.getElementById('latex-preview');

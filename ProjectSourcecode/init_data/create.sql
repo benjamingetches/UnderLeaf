@@ -1,16 +1,18 @@
 CREATE TABLE IF NOT EXISTS users(
 username VARCHAR(50) PRIMARY KEY,
 email VARCHAR(50) NOT NULL,
-password CHAR(60) NOT NULL
-profile_photo_url VARCHAR(255), -- URL for the friend's profile photo
+password CHAR(60) NOT NULL,
+profile_photo_url VARCHAR(255) -- URL for the friend's profile photo
 );
 
 CREATE TABLE IF NOT EXISTS notes(
 id SERIAL PRIMARY KEY,
 title VARCHAR(50) NOT NULL,
 content TEXT NOT NULL,
-username VARCHAR(50) NOT NULL,
-category VARCHAR(50) NOT NULL
+username VARCHAR(50) NOT NULL REFERENCES users(username),
+category VARCHAR(50) NOT NULL,
+created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- TODO: communities table
@@ -36,13 +38,22 @@ CREATE TABLE IF NOT EXISTS community_memberships (
 
 -- TODO: friends table
 
+CREATE TYPE friend_status AS ENUM ('pending', 'accepted', 'rejected');
+
 CREATE TABLE IF NOT EXISTS friends (
     username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Establishes a foreign key relationships with users tabel
     friend_username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Establishes a foreign key relationships with users tabel
-    status ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending', -- Tracks friend request status
+    status friend_status DEFAULT 'pending', -- Tracks friend request status
     request_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Tracks the date the request was made
     PRIMARY KEY (username, friend_username), -- Ensures unique friend relationships
     CONSTRAINT fk_user_friends CHECK (username <> friend_username) -- Prevents users from friending themselves
 );
 
-
+CREATE TABLE IF NOT EXISTS note_permissions (
+    note_id INT REFERENCES notes(id) ON DELETE CASCADE,
+    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    can_edit BOOLEAN DEFAULT FALSE,
+    can_read BOOLEAN DEFAULT TRUE,
+    shared_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (note_id, username)
+);

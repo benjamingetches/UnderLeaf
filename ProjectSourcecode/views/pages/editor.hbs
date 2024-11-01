@@ -380,16 +380,50 @@ body {
 
 {{#if note}}
   <script>
+      function unescapeLatex(text) {
+        if (!text) return '';
+        return text
+          .replace(/\\'/g, "'")    // Unescape single quotes
+          .replace(/\\"/g, '"')    // Unescape double quotes
+          .replace(/\\\\/g, '\\')  // Handle escaped backslashes
+          .replace(/&quot;/g, '"') // Handle HTML entities
+          .replace(/&#027;/g, "'")
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+      }
     document.addEventListener('DOMContentLoaded', function() {
-      editor.setValue(`{{note.content}}`);
-      document.getElementById('note-title').value = `{{note.title}}`;
+      const titleInput = document.getElementById('note-title');
+      titleInput.value = unescapeLatex(`{{note.title}}`);
+
+      // Sanitize and set the editor content
+      const content = unescapeLatex(`{{note.content}}`);
+      editor.setValue(content);
+
+      // Force a refresh of the editor
+      editor.refresh();
+      
+      // Trigger a re-render of the preview
+      renderLaTeX();
     });
   </script>
 {{/if}}
 
 <!-- jQuery UI for resizable functionality -->
 <script>
-
+  function unescapeLatex(text) {
+    if (!text) return '';
+    return text
+      .replace(/\\'/g, "'")    // Unescape single quotes
+      .replace(/\\"/g, '"')    // Unescape double quotes
+      .replace(/\\\\/g, '\\')  // Handle escaped backslashes
+      .replace(/&quot;/g, '"') // Handle HTML entities
+      .replace(/&#027;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace("&#x27;", "'")
+  }
 
   $(function() {
     // Make the editor resizable
@@ -425,8 +459,9 @@ body {
 
   // Function to render LaTeX to HTML
   function renderLaTeX() {
-    const latexContent = editor.getValue();
 
+    const latexContent = unescapeLatex(editor.getValue());
+    console.log(latexContent);
     // Clear previous content
     const preview = document.getElementById('latex-preview');
     preview.innerHTML = '';
@@ -700,9 +735,143 @@ const preview = document.getElementById('latex-preview');
     window.URL.revokeObjectURL(url);
   });
 
-  document.getElementById('share-preview').addEventListener('click', () => {
-    // Implement share functionality
-    console.log('Share clicked');
+  document.getElementById('share-preview').addEventListener('click', async () => {
+    // First save the current note
+    const latexContent = editor.getValue();
+    const titleInput = document.getElementById('note-title');
+    const title = titleInput.value.trim();
+
+    if (!title) {
+      alert('Please enter a title before sharing.');
+      titleInput.focus();
+      return;
+    }
+
+    try {
+      // Save the note first
+      const saveResponse = await fetch('/save-latex', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          content: latexContent,
+          category: 'LaTeX',
+          username: '{{user.username}}',
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save note');
+      }
+
+      // Fetch friends list
+      const friendsResponse = await fetch('/get-friends-for-sharing');
+      const friends = await friendsResponse.json();
+      console.log(friends);
+
+      // Create and show the sharing modal
+      const modalHtml = `
+        <div class="modal fade" id="shareModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Share Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="shareForm">
+                  <div class="mb-3">
+                    <label class="form-label">Share with:</label>
+                    <select class="form-select" id="shareWith" required>
+                      <option value="">Select a friend</option>
+                      ${friends.map(friend => 
+                        `<option value="${friend.friend_username}">${friend.friend_username}</option>`
+                      ).join('')}
+                    </select>
+                  </div>
+                  <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="canEdit">
+                    <label class="form-check-label" for="canEdit">Allow editing</label>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmShare">Share</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Add modal to document
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+      shareModal.show();
+
+      // Handle share confirmation
+      document.getElementById('confirmShare').addEventListener('click', async () => {
+        const shareWith = document.getElementById('shareWith').value;
+        const canEdit = document.getElementById('canEdit').checked;
+
+        if (!shareWith) {
+          alert('Please select a friend to share with.');
+          return;
+        }
+
+        try {
+          // Get the note ID from the save response
+          const saveResponse = await fetch('/save-latex', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title,
+              content: latexContent,
+              category: 'LaTeX',
+              username: '{{user.username}}',
+            }),
+          });
+
+          const saveData = await saveResponse.json();
+          if (!saveData.success) {
+            throw new Error('Failed to save note');
+          }
+
+          const shareResponse = await fetch('/share-note', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              noteId: saveData.noteId,
+              shareWith,
+              canEdit,
+            }),
+          });
+
+          if (shareResponse.ok) {
+            alert('Note shared successfully!');
+            shareModal.hide();
+          } else {
+            throw new Error('Failed to share note');
+          }
+        } catch (error) {
+          alert('Error sharing note: ' + error.message);
+        }
+      });
+
+      // Clean up modal when hidden
+      document.getElementById('shareModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+      });
+
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
   });
 
   // Event handler for the context modal submission

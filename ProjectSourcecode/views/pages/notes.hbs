@@ -12,6 +12,27 @@
       max-height: 60px;
       overflow: hidden;
     }
+    .card-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: monospace;
+    }
+    
+    .latex-preview {
+        max-height: 100px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .latex-preview::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        background: linear-gradient(transparent, white);
+    }
 </style>
 
 
@@ -24,13 +45,31 @@
       <div class="col">
         <div class="card h-100 shadow-sm">
           <div class="card-body d-flex flex-column">
-            <h5 class="card-title">{{this.title}}</h5>
-            <p class="card-text">
-              {{this.content}}
+            <h5 class="card-title">{{safeLatex this.title}}</h5>
+            {{#if this.content}}
+            <p class="card-text small text-muted">
+                {{truncateLatex this.content 100}}
+            </p>
+            {{/if}}
+            <p class="card-text text-muted">
+              {{#if_eq this.access_type "Shared"}}
+                  Shared by: {{this.username}}
+                  {{#if this.can_edit}}
+                      (Can Edit)
+                  {{else}}
+                      (Read Only)
+                  {{/if}}
+              {{/if_eq}}
             </p>
             <div class="mt-auto">
-              <a href="/edit-note/{{this.id}}" class="btn btn-secondary btn-sm me-2 disabled{{#unless this.can_edit}}enabled{{/unless}}">Edit</a>
-              <button class="btn btn-danger btn-sm delete-note-btn" data-note-id="{{this.id}}">Delete</button>
+              {{#if can_read}}
+                  <a href="/edit-note/{{this.id}}" class="btn btn-secondary btn-sm me-2 {{#unless can_edit}}disabled{{/unless}}">
+                      {{#if can_edit}}Edit{{else}}View{{/if}}
+                  </a>
+                  {{#if_eq access_type "Owner"}}
+                      <button class="btn btn-danger btn-sm delete-note-btn" data-note-id="{{this.id}}">Delete</button>
+                  {{/if_eq}}
+              {{/if}}
             </div>
           </div>
         </div>

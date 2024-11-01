@@ -1,5 +1,6 @@
-<header>
-    <nav class="navbar navbar-expand-sm">
+
+{{#unless hideNav}}
+<nav class="navbar navbar-expand-sm">
         <div class="container">
             <a class="navbar-brand" href="/">
                 <span class="brand-text d-none d-sm-inline">UnderLeaf | a Mobile LaTeX editor</span>
@@ -60,6 +61,8 @@
             </div>
         </div>
     </nav>
+    {{/unless}}
+    
 </header>
 
 <style>

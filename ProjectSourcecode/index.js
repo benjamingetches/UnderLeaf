@@ -314,9 +314,8 @@ app.delete('/delete-note/:id', async (req, res) => {
 
 
 app.get('/logout', (req, res) => {
-    req.session.destroy();
-
-    res.render('pages/logout', { message: 'You have been logged out successfully' });
+  req.session.destroy();
+  res.render('pages/logout', { hideNav: true, message: 'You have been logged out successfully' });
 });
 
 

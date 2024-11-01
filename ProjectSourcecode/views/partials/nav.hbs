@@ -1,40 +1,40 @@
 <header>
+  {{#unless hideNav}}
     <nav class="navbar navbar-expand-sm border-bottom">
-    <div class="container">
+      <div class="container">
         <button
-            class="navbar-toggler ms-auto"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbar-collapse"
-            aria-controls="navbar"
-            aria-expanded="false"
-            aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
+          class="navbar-toggler ms-auto"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbar-collapse"
+          aria-controls="navbar"
+          aria-expanded="false"
+          aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbar-collapse">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/editor">LaTex Editor</a>
-                    
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/notes">Notes</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/scan">Scan</a>
-                </li>
-                 <li class="nav-item">
-                    <a class="nav-link" href="/communities">Communities</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/friends">Friends</a>
-                </li>
-            </ul>
-            <div class="nav-item me-1">
-                <!--- TODO: ensure logout button is only visible when user is logged in --->
-                <a class="nav-link" href="/logout">Logout</a>
-            </div>
+          <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/editor">LaTeX Editor</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/notes">Notes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/scan">Scan</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/communities">Communities</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/friends">Friends</a>
+            </li>
+          </ul>
+          <div class="nav-item me-1">
+            <a class="nav-link" href="/logout">Logout</a>
+          </div>
         </div>
-    </div>
+      </div>
     </nav>
+  {{/unless}}
 </header>

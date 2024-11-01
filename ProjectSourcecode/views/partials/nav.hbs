@@ -32,7 +32,11 @@
             </ul>
             <div class="nav-item me-1">
                 <!--- TODO: ensure logout button is only visible when user is logged in --->
-                <a class="nav-link" href="/logout">Logout</a>
+                {{#if user}}
+                    <a class="nav-link" href="/logout">Logout</a>
+                {{else}}
+                    <a class="nav-link" href="/login">Login</a>
+                {{/if}}
             </div>
         </div>
     </div>

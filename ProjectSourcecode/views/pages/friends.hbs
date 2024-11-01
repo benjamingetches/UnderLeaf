@@ -1,0 +1,24 @@
+<h1>Friends</h1>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Friend Username</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each friends}}
+      <tr>
+        <td>{{this.friend_username}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<form action="/add-friend" method="POST">
+  <div>
+    <label for="friendUsername">Add Friend:</label>
+    <input type="text" id="friendUsername" name="friendUsername" required>
+    <button type="submit">Add</button>
+  </div>
+</form>

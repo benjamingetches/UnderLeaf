@@ -1,65 +1,55 @@
 <header>
+  {{#unless hideNav}}
     <nav class="navbar navbar-expand-sm">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <span class="brand-text d-none d-sm-inline">UnderLeaf | a Mobile LaTeX editor</span>
-                <span class="brand-text d-inline d-sm-none">UnderLeaf</span>
-            </a>
-            
-            <button
-                class="navbar-toggler"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#navbar-collapse"
-                aria-controls="navbar"
-                aria-expanded="false"
-                aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          <span class="brand-text d-none d-sm-inline">UnderLeaf | a Mobile LaTeX editor</span>
+          <span class="brand-text d-inline d-sm-none">UnderLeaf</span>
+        </a>
+        
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbar-collapse"
+          aria-controls="navbar"
+          aria-expanded="false"
+          aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
 
-            <div class="collapse navbar-collapse" id="navbar-collapse">
-                <ul class="navbar-nav mx-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/editor">
-                            <i class="fas fa-edit me-1"></i>Editor
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/notes">
-                            <i class="fas fa-sticky-note me-1"></i>Notes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/scan">
-                            <i class="fas fa-scanner me-1"></i>Scan
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/communities">
-                            <i class="fas fa-users me-1"></i>Communities
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/friends">
-                            <i class="fas fa-user-friends me-1"></i>Friends
-                        </a>
-                    </li>
-                </ul>
-                
-                <div class="nav-item">
-                    {{#if user}}
-                        <a class="nav-link auth-link" href="/logout">
-                            <i class="fas fa-sign-out-alt me-1"></i>Logout
-                        </a>
-                    {{else}}
-                        <a class="nav-link auth-link" href="/login">
-                            <i class="fas fa-sign-in-alt me-1"></i>Login
-                        </a>
-                    {{/if}}
-                </div>
-            </div>
+        <div class="collapse navbar-collapse" id="navbar-collapse">
+          <ul class="navbar-nav mx-auto">
+            {{#if user}}
+              <li class="nav-item">
+                <a class="nav-link" href="/editor">Editor</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/notes">Notes</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/scan">Scan</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/communities">Communities</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/friends">Friends</a>
+              </li>
+            {{/if}}
+          </ul>
+
+          <div class="nav-item">
+            {{#if user}}
+              <a class="nav-link auth-link" href="/logout">Logout</a>
+            {{else}}
+              <a class="nav-link auth-link" href="/login">Login</a>
+            {{/if}}
+          </div>
         </div>
+      </div>
     </nav>
+  {{/unless}}
 </header>
 
 <style>

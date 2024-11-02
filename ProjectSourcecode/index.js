@@ -157,24 +157,28 @@ app.get('/', (req, res) => {
 });
   
 app.get('/login', (req, res) => {
-    if (req.session.user) {
-        return res.redirect('/editor');
-    }
-    res.render('pages/auth', { 
-        isRegister: false,
-        loginError: req.query.error
-    });
+  if (req.session.user) {
+      return res.redirect('/editor');
+  }
+  res.render('pages/auth', { 
+      isRegister: false,
+      loginError: req.query.error,
+      hideNav: true  // Hide the navbar on the login page
+  });
 });
 
+
 app.get('/register', (req, res) => {
-    if (req.session.user) {
-        return res.redirect('/editor');
-    }
-    res.render('pages/auth', { 
-        isRegister: true,
-        registerError: req.query.error
-    });
+  if (req.session.user) {
+      return res.redirect('/editor');
+  }
+  res.render('pages/auth', { 
+      isRegister: true,
+      registerError: req.query.error,
+      hideNav: true  // Hide the navbar on the register page
+  });
 });
+
 
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
@@ -289,9 +293,47 @@ app.get('/notes', async (req, res) => {
     }
 });
 
-app.get('/communities', (req, res) => {
-  res.render('pages/communities');
+// app.get('/communities', (req, res) => {
+//   res.render('pages/communities');
+// });
+
+app.get('/communities', async (req, res) => {
+  try {
+    const { is_private, created_by } = req.query;
+
+    // Base query to select all communities
+    let query = 'SELECT * FROM communities';
+    const queryParams = [];
+
+    if (is_private !== undefined) {
+      queryParams.push(is_private === 'true');
+      query += ` WHERE is_private = $${queryParams.length}`;
+    }
+
+    if (created_by) {
+      queryParams.push(created_by);
+      query += queryParams.length === 1 ? ' WHERE' : ' AND';
+      query += ` created_by = $${queryParams.length}`;
+    }
+
+    // Fetch communities from the database
+    const communities = await db.any(query, queryParams);
+
+    // Pass user data to the template, along with communities data
+    res.render('pages/communities', {
+      data: communities,
+      user: req.session.user,  // Ensure user data is passed here
+    });
+  } catch (error) {
+    console.error('Error fetching communities:', error);
+    res.render('pages/communities', {
+      data: [],
+      user: req.session.user,  // Include user data even on error
+      message: 'Server error while fetching communities'
+    });
+  }
 });
+
 
 app.get('/friends', async (req, res) => {
   const user = req.session.user;
@@ -533,43 +575,41 @@ app.post('/process-selection', async (req, res) => {
 });
 
 //communities page endpoints
-// GET /communities - Retrieve a list of communities, with optional filters for privacy and creator
 app.get('/communities', async (req, res) => {
   const { is_private, created_by } = req.query;
 
   try {
-      // Base query to select all communities
-      let query = 'SELECT * FROM communities';
-      const queryParams = [];
+    let query = 'SELECT * FROM communities';
+    const queryParams = [];
 
-      // Apply filters if provided in the query string
-      if (is_private !== undefined) {
-          queryParams.push(is_private === 'true');
-          query += ` WHERE is_private = $${queryParams.length}`;
-      }
+    if (is_private !== undefined) {
+      queryParams.push(is_private === 'true');
+      query += ` WHERE is_private = $${queryParams.length}`;
+    }
 
-      if (created_by) {
-          queryParams.push(created_by);
-          query += queryParams.length === 1 ? ' WHERE' : ' AND';
-          query += ` created_by = $${queryParams.length}`;
-      }
+    if (created_by) {
+      queryParams.push(created_by);
+      query += queryParams.length === 1 ? ' WHERE' : ' AND';
+      query += ` created_by = $${queryParams.length}`;
+    }
 
-      console.log('Executing query:', query, 'with parameters:', queryParams); // Log query and params for debugging
+    const communities = await db.any(query, queryParams);
 
-      // Execute the query with applied parameters
-      const communities = await db.any(query, queryParams);
-      res.status(200).json({
-          success: true,
-          data: communities
-      });
+    // Render the template with user data included
+    res.render('pages/community', {
+      data: communities,
+      user: req.session.user,  // Pass the user variable here
+    });
   } catch (error) {
-      console.error('Error fetching communities:', error);
-      res.status(500).json({
-          success: false,
-          message: 'Server error while fetching communities'
-      });
+    console.error('Error fetching communities:', error);
+    res.render('pages/community', {
+      data: [],
+      user: req.session.user,  // Pass the user variable here on error as well
+      message: 'Server error while fetching communities'
+    });
   }
 });
+
 
 // Get friends for sharing
 app.get('/get-friends-for-sharing', async (req, res) => {

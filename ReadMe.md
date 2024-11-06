@@ -1,0 +1,2 @@
+Update for Ben, 11/5
+Apart from committed updates, our TA asked to commit 3x a week, and suggested I burner commit on the readme, as the bulk of my work is on the CNN, and cant be committed until im done. so, this is for my credit week 2. will delete later. 

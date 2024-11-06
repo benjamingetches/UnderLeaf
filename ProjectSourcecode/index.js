@@ -293,52 +293,115 @@ app.get('/notes', async (req, res) => {
     }
 });
 
-// app.get('/communities', (req, res) => {
-//   res.render('pages/communities');
-// });
+
 
 app.get('/communities', async (req, res) => {
   try {
     const { is_private, created_by } = req.query;
+    const user = req.session.user;
 
-    // Base query to select all communities
-    let query = 'SELECT * FROM communities';
-    const queryParams = [];
+    // Base query to select communities and check membership
+    let query = `
+      SELECT c.*, 
+             CASE WHEN cm.username IS NOT NULL THEN true ELSE false END as is_member
+      FROM communities c
+      LEFT JOIN community_memberships cm ON c.community_id = cm.community_id 
+        AND cm.username = $1`;
+    
+    const queryParams = [user.username];
+    let paramCount = 1;
 
     if (is_private !== undefined) {
+      paramCount++;
       queryParams.push(is_private === 'true');
-      query += ` WHERE is_private = $${queryParams.length}`;
+      query += ` WHERE c.is_private = $${paramCount}`;
     }
 
     if (created_by) {
+      paramCount++;
       queryParams.push(created_by);
-      query += queryParams.length === 1 ? ' WHERE' : ' AND';
-      query += ` created_by = $${queryParams.length}`;
+      query += queryParams.length === 2 ? ' WHERE' : ' AND';
+      query += ` c.created_by = $${paramCount}`;
     }
 
     // Fetch communities from the database
     const communities = await db.any(query, queryParams);
 
-    // Pass user data to the template, along with communities data
+    // Render the template with user data included
     res.render('pages/communities', {
       data: communities,
-      user: req.session.user,  // Ensure user data is passed here
+      user: user
     });
   } catch (error) {
     console.error('Error fetching communities:', error);
     res.render('pages/communities', {
       data: [],
-      user: req.session.user,  // Include user data even on error
+      user: req.session.user,
       message: 'Server error while fetching communities'
     });
   }
 });
+// Join community route
+app.post('/join-community/:id', async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const username = req.session.user.username;
+
+    await db.none(
+      'INSERT INTO community_memberships (community_id, username) VALUES ($1, $2)',
+      [communityId, username]
+    );
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Error joining community:', error);
+    res.sendStatus(500);
+  }
+});
+
+// Leave community route
+app.post('/leave-community/:id', async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const username = req.session.user.username;
+
+    await db.none(
+      'DELETE FROM community_memberships WHERE community_id = $1 AND username = $2',
+      [communityId, username]
+    );
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Error leaving community:', error);
+    res.sendStatus(500);
+  }
+});
+
 
 
 app.get('/friends', async (req, res) => {
-  const user = req.session.user;
-  const friends = await db.any('SELECT friend_username FROM friends WHERE username = $1', [user.username]);
-  res.render('pages/friends', { user, friends });
+  try {
+    const user = req.session.user;
+    const friends = await db.any(`
+      SELECT f.*, u.email 
+      FROM friends f
+      JOIN users u ON f.friend_username = u.username
+      WHERE f.username = $1
+    `, [user.username]);
+
+    res.render('pages/friends', { 
+      user, 
+      friends,
+      message: req.query.message
+    });
+  } catch (error) {
+    console.error('Error fetching friends:', error);
+    res.render('pages/friends', { 
+      user: req.session.user,
+      friends: [],
+      message: 'Error fetching friends list'
+    });
+  }
 });
 
 app.post('/add-friend', async (req, res) => {
@@ -574,41 +637,6 @@ app.post('/process-selection', async (req, res) => {
     }
 });
 
-//communities page endpoints
-app.get('/communities', async (req, res) => {
-  const { is_private, created_by } = req.query;
-
-  try {
-    let query = 'SELECT * FROM communities';
-    const queryParams = [];
-
-    if (is_private !== undefined) {
-      queryParams.push(is_private === 'true');
-      query += ` WHERE is_private = $${queryParams.length}`;
-    }
-
-    if (created_by) {
-      queryParams.push(created_by);
-      query += queryParams.length === 1 ? ' WHERE' : ' AND';
-      query += ` created_by = $${queryParams.length}`;
-    }
-
-    const communities = await db.any(query, queryParams);
-
-    // Render the template with user data included
-    res.render('pages/community', {
-      data: communities,
-      user: req.session.user,  // Pass the user variable here
-    });
-  } catch (error) {
-    console.error('Error fetching communities:', error);
-    res.render('pages/community', {
-      data: [],
-      user: req.session.user,  // Pass the user variable here on error as well
-      message: 'Server error while fetching communities'
-    });
-  }
-});
 
 
 // Get friends for sharing

@@ -1,99 +1,108 @@
-<style>
-    /* Styling for the page */
-    body {
-        font-family: 'Roboto', sans-serif;
-        background-color: #f5f5f5;
-    }
-    .container {
-        display: flex;
-    }
-    .community-list {
-        flex: 3;
-        display: flex;
-        flex-wrap: wrap;
-    }
-    .card {
-        margin: 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s;
-        padding: 10px;
-        width: 30%;
-    }
-    .card:hover {
-        transform: translateY(-5px);
-    }
-    .card-title {
-        font-size: 1.2em;
-        font-weight: bold;
-    }
-    .button-container {
-        text-align: center;
-        margin-top: 10px;
-    }
-    .btn-visit {
-        background-color: #008CBA;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .btn-visit:hover {
-        background-color: #007bb5;
-    }
-    /* Right sidebar for buttons */
-    .sidebar {
-        flex: 1;
-        padding: 20px;
-    }
-    .sidebar button {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-        font-size: 1em;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-    .btn-create {
-        background-color: #4CAF50;
-        color: white;
-    }
-    .btn-join {
-        background-color: #f44336;
-        color: white;
-    }
-    /* Modal styling for Create and Join */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1;
-        padding-top: 100px;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.4);
-    }
-    .modal-content {
-        background-color: #fff;
-        margin: auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 400px;
-        border-radius: 8px;
-    }
-    .close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-</style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communities</title>
+    <link rel="stylesheet" href="/path/to/your/styles.css">
+    <style>
+        /* Styles from your provided code */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+        }
+        .community-list {
+            flex: 3;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .card {
+            margin: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            padding: 10px;
+            width: 30%;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .btn-visit {
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-visit:hover {
+            background-color: #007bb5;
+        }
+        /* Right sidebar for buttons */
+        .sidebar {
+            flex: 1;
+            padding: 20px;
+        }
+        .sidebar button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-create {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-join {
+            background-color: #f44336;
+            color: white;
+        }
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 100px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 400px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
 
 <h1>Community</h1>
 
@@ -102,11 +111,11 @@
     <div class="community-list">
         {{#each data}}
         <div class="card">
-            <h5 class="card-title">{{name}}</h5>
+            <h5 class="card-title"><a href="/community/{{community_id}}">{{name}}</a></h5>
             <p class="text-muted">{{description}}</p>
             <p class="text-muted">Members: {{member_count}}</p>
             <div class="button-container">
-                <button class="btn-visit" onclick="visitCommunity('{{id}}')">Visit Community</button>
+                <button class="btn-visit" onclick="visitCommunity('{{community_id}}')">Visit Community</button>
             </div>
         </div>
         {{/each}}
@@ -157,7 +166,6 @@
 </div>
 
 <script>
-    // JavaScript to open community page
     function visitCommunity(communityId) {
         window.location.href = `/community/${communityId}`;
     }
@@ -200,3 +208,7 @@
         }
     }
 </script>
+
+</body>
+</html>
+

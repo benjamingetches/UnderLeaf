@@ -295,7 +295,7 @@ app.get('/notes', async (req, res) => {
 });
 
 
-
+//communities endpoints start=====================
 app.get('/communities', async (req, res) => {
   try {
     const { is_private, created_by } = req.query;
@@ -397,7 +397,9 @@ app.post('/create-community', async (req, res) => {
     );
 
     // Redirect to the new community’s page
-    res.redirect(`/community/${result.community_id}`);
+    console.log("New community created with ID:", result.community_id);
+    res.redirect(`pages/community/${result.community_id}`);
+
   } catch (error) {
     console.error('Error creating community:', error);
 
@@ -410,9 +412,46 @@ app.post('/create-community', async (req, res) => {
   }
 });
 
+app.post('/community/:id/join', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to join a community.");
+  }
+  try {
+    const communityId = req.params.id;
+    const username = req.session.user.username;
 
+    await db.none(
+      `INSERT INTO community_memberships (community_id, username) VALUES ($1, $2)`,
+      [communityId, username]
+    );
 
+    res.redirect(`/community/${communityId}`);
+  } catch (error) {
+    console.error('Error joining community:', error);
+    res.redirect(`/community/${communityId}`);
+  }
+});
 
+app.post('/community/:id/leave', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to leave a community.");
+  }
+  try {
+    const communityId = req.params.id;
+    const username = req.session.user.username;
+
+    await db.none(
+      `DELETE FROM community_memberships WHERE community_id = $1 AND username = $2`,
+      [communityId, username]
+    );
+
+    res.redirect(`/community/${communityId}`);
+  } catch (error) {
+    console.error('Error leaving community:', error);
+    res.redirect(`/community/${communityId}`);
+  }
+});
+//communities endpoints End =====================
 
 
 

@@ -1,0 +1,25 @@
+<h1>{{community.name}}</h1>
+<p>{{community.description}}</p>
+<p>Created by: {{community.created_by}}</p>
+<p>Created at: {{community.created_at}}</p>
+
+{{#if members.length}}
+  <h3>Members:</h3>
+  <ul>
+    {{#each members}}
+      <li>{{this.username}}</li>
+    {{/each}}
+  </ul>
+{{else}}
+  <p>No members yet.</p>
+{{/if}}
+
+<!-- Button to join or leave the community if the user is logged in -->
+{{#if user}}
+  <form action="/community/{{community.community_id}}/join" method="POST">
+    <button type="submit">Join Community</button>
+  </form>
+  <form action="/community/{{community.community_id}}/leave" method="POST">
+    <button type="submit">Leave Community</button>
+  </form>
+{{/if}}

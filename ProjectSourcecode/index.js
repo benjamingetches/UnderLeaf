@@ -120,6 +120,10 @@ const openai = new OpenAIApi(configuration);
 // <!-- Section 4 : API Routes -->
 // *****************************************************
 
+app.get('/welcome', (req, res) => {
+  res.status(200).json({status: 'success', message: 'Welcome!'});
+});
+
 // Add these before any middleware or routes
 app.use((req, res, next) => {
     console.log('Incoming request:', {
@@ -187,7 +191,7 @@ app.post('/login', async (req, res) => {
         const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
         
         if (!user) {
-            return res.render('pages/auth', { 
+            return res.status(401).render('pages/auth', { 
                 loginError: 'Invalid username',
                 isRegister: false
             });
@@ -195,18 +199,18 @@ app.post('/login', async (req, res) => {
         
         const passwordValid = await bcrypt.compare(password, user.password);
         if (!passwordValid) {
-            return res.render('pages/auth', { 
-                loginError: 'Invalid password',
+            return res.status(401).render('pages/auth', { 
+                message: 'Invalid password',
                 isRegister: false
             });
         }
         
         req.session.user = user;
         req.session.save();
-        res.redirect('/editor');
+        res.status(200).redirect('/editor');
     } catch (error) {
         console.error('Login error:', error);
-        res.render('pages/auth', { 
+        res.status(500).render('pages/auth', { 
             loginError: 'An error occurred during login',
             isRegister: false
         });
@@ -222,10 +226,10 @@ app.post('/register', async (req, res) => {
             email,
             hashedPassword,
         ]);
-        res.redirect('/login?message=Registration successful! Please login.');
+        res.status(201).redirect('/login?message=Registration successful! Please login.');
     } catch (error) {
         console.error('Registration error:', error);
-        res.render('pages/auth', { 
+        res.status(409).render('pages/auth', { 
             registerError: 'Username/email already exists',
             isRegister: true
         });
@@ -353,10 +357,10 @@ app.post('/join-community/:id', async (req, res) => {
       [communityId, username]
     );
 
-    res.sendStatus(200);
+    res.status(201).json({ success: true, message: 'Successfully joined community' });
   } catch (error) {
     console.error('Error joining community:', error);
-    res.sendStatus(500);
+    res.status(500).json({ success: false, error: 'Failed to join community' });
   }
 });
 
@@ -483,7 +487,10 @@ app.delete('/delete-note/:id', async (req, res) => {
         );
 
         if (!note) {
-            return res.status(403).send('You do not have permission to delete this note');
+            return res.status(403).json({
+                success: false,
+                error: 'You do not have permission to delete this note'
+            });
         }
 
         // Delete note permissions first (due to foreign key constraint)
@@ -491,10 +498,16 @@ app.delete('/delete-note/:id', async (req, res) => {
         // Then delete the note
         await db.none('DELETE FROM notes WHERE id = $1 AND username = $2', [noteId, user.username]);
         
-        res.status(200).send('Note deleted');
+        res.status(200).json({
+            success: true,
+            message: 'Note deleted successfully'
+        });
     } catch (error) {
         console.error('Error deleting note:', error);
-        res.status(500).send('Error deleting note');
+        res.status(500).json({
+            success: false,
+            error: 'Error deleting note'
+        });
     }
 });
 
@@ -549,24 +562,28 @@ app.post('/save-latex', async (req, res) => {
         }
 
         let resultNoteId;
+        let statusCode = 200;
 
         if (existingNote) {
-            // Update existing note
             await db.none(
                 'UPDATE notes SET content = $1, category = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
                 [sanitizedContent, category, existingNote.id]
             );
             resultNoteId = existingNote.id;
         } else {
-            // Create new note
             const result = await db.one(
                 'INSERT INTO notes (title, content, username, category) VALUES ($1, $2, $3, $4) RETURNING id',
                 [title, sanitizedContent, username, category]
             );
             resultNoteId = result.id;
+            statusCode = 201; // Created
         }
 
-        res.status(200).json({ success: true, noteId: resultNoteId });
+        res.status(statusCode).json({ 
+            success: true, 
+            noteId: resultNoteId,
+            message: statusCode === 201 ? 'Note created successfully' : 'Note updated successfully'
+        });
     } catch (error) {
         console.error('Error saving note:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -697,20 +714,24 @@ app.post('/share-note', async (req, res) => {
   const user = req.session.user;
 
   try {
-    // First verify the user owns the note
     const note = await db.one('SELECT * FROM notes WHERE id = $1 AND username = $2', 
       [noteId, user.username]);
 
-    // Insert sharing permissions
     await db.none(
       'INSERT INTO note_permissions (note_id, username, can_edit, can_read) VALUES ($1, $2, $3, $4)',
       [noteId, shareWith, canEdit, true]
     );
 
-    res.json({ success: true });
+    res.status(201).json({ 
+        success: true, 
+        message: 'Note shared successfully'
+    });
   } catch (error) {
     console.error('Error sharing note:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+        success: false, 
+        error: error.message 
+    });
   }
 });
 
@@ -720,7 +741,7 @@ app.post('/share-note', async (req, res) => {
 // <!-- Section 5 : Start Server-->
 // *****************************************************
 // starting the server and keeping the connection open to listen for more requests
-app.listen(3000);
+module.exports = app.listen(3000);
 console.log('Server is listening on port 3000');
 
 // Add this helper function at the top of your file

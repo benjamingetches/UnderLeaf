@@ -27,12 +27,26 @@ CREATE TABLE IF NOT EXISTS communities (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP -- Tracks community creation date
 );
 
-CREATE TABLE IF NOT EXISTS community_memberships (
-    community_id INT REFERENCES communities(community_id) ON DELETE CASCADE, -- foreign key to link this table to community table
-    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- foreign key to link 
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Tracks when user joined the community
-    is_admin BOOLEAN DEFAULT FALSE, -- Indicates if the user is an admin of the community
-    PRIMARY KEY (community_id, username) -- Ensures unique membership entries per community
+CREATE TABLE IF NOT EXISTS community_roles (
+    role_id SERIAL PRIMARY KEY, -- Unique identifier for each role
+    role_name VARCHAR(50) UNIQUE NOT NULL, -- Role name (e.g., "Admin", "Moderator", "Member")
+    description TEXT -- Description of the role and its permissions
+);
+
+CREATE TABLE IF NOT EXISTS community_user_roles (
+    community_id INT REFERENCES communities(community_id) ON DELETE CASCADE,
+    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    role_id INT REFERENCES community_roles(role_id) ON DELETE SET NULL,
+    PRIMARY KEY (community_id, username)
+);
+
+CREATE TABLE IF NOT EXISTS community_messages (
+    message_id SERIAL PRIMARY KEY, -- Unique identifier for each message
+    community_id INT REFERENCES communities(community_id) ON DELETE CASCADE, -- Links message to the community
+    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Links message to the sender
+    content TEXT NOT NULL, -- The message content
+    sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the message was sent
+    edited_at TIMESTAMP WITH TIME ZONE -- Optional; to track if the message was edited
 );
 
 

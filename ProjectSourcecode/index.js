@@ -382,6 +382,7 @@ app.post('/create-community', async (req, res) => {
   if (!req.session.user) {
     return res.status(401).send("Unauthorized: Please log in to create a community.");
   }
+
   try {
     const { name, description, is_private } = req.body;
     const created_by = req.session.user.username;
@@ -392,25 +393,26 @@ app.post('/create-community', async (req, res) => {
     // Insert the new community into the database
     const result = await db.one(
       `INSERT INTO communities (name, description, is_private, access_code, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`, // Ensure the correct identifier is used
+       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
       [name, description, is_private === 'true', access_code, created_by]
     );
 
     // Redirect to the new community’s page
     console.log("New community created with ID:", result.community_id);
-    res.redirect(`pages/community/${result.community_id}`);
+    res.redirect(`/community/${result.community_id}`);
 
   } catch (error) {
     console.error('Error creating community:', error);
 
     // Render error message if an error occurs
-    res.render('pages/communities', { // Ensure this path exists
+    res.render('pages/communities', {
       error: 'There was an error creating the community. Please try again.',
       user: req.session.user,
       formData: { name, description, is_private }
     });
   }
 });
+
 
 app.post('/community/:id/join', async (req, res) => {
   if (!req.session.user) {
@@ -451,6 +453,105 @@ app.post('/community/:id/leave', async (req, res) => {
     res.redirect(`/community/${communityId}`);
   }
 });
+
+// Get a unique community page
+app.get('/community/:id', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to view this community.");
+  }
+
+  try {
+    const communityId = req.params.id;
+    const user = req.session.user;
+
+    // Fetch community details
+    const community = await db.oneOrNone(
+      `SELECT * FROM communities WHERE community_id = $1`,
+      [communityId]
+    );
+
+    // Fetch community members
+    const members = await db.any(
+      `SELECT u.username, cm.is_admin 
+       FROM community_memberships cm
+       JOIN users u ON cm.username = u.username
+       WHERE cm.community_id = $1`,
+      [communityId]
+    );
+
+    // Fetch recent chat messages (last 20 messages)
+    const messages = await db.any(
+      `SELECT m.message_id, m.username, m.content, m.sent_at, u.profile_picture_url
+       FROM community_messages m
+       JOIN users u ON m.username = u.username
+       WHERE m.community_id = $1
+       ORDER BY m.sent_at DESC
+       LIMIT 20`,
+      [communityId]
+    );
+
+    // Render the unique community page with the community data, members, and messages
+    res.render('pages/uniqueCommunity', {
+      community,
+      members,
+      messages,
+      user: user
+    });
+  } catch (error) {
+    console.error('Error fetching community page:', error);
+    res.status(500).send("Server error while fetching the community.");
+  }
+});
+
+// Post a message to community chat
+app.post('/community/:id/chat', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to send messages.");
+  }
+
+  try {
+    const communityId = req.params.id;
+    const username = req.session.user.username;
+    const content = req.body.content;
+
+    await db.none(
+      `INSERT INTO community_messages (community_id, username, content)
+       VALUES ($1, $2, $3)`,
+      [communityId, username, content]
+    );
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Error posting message:', error);
+    res.status(500).send("Server error while posting the message.");
+  }
+});
+
+// Fetch all community members (for modal view)
+app.get('/community/:id/members', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to view members.");
+  }
+
+  try {
+    const communityId = req.params.id;
+
+    const members = await db.any(
+      `SELECT u.username, u.profile_picture_url, cm.joined_at, cm.is_admin
+       FROM community_memberships cm
+       JOIN users u ON cm.username = u.username
+       WHERE cm.community_id = $1
+       ORDER BY u.username ASC`,
+      [communityId]
+    );
+
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching community members:', error);
+    res.status(500).send("Server error while fetching community members.");
+  }
+})
+
 //communities endpoints End =====================
 
 

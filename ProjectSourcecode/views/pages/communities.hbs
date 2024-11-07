@@ -1,144 +1,202 @@
 <style>
-    /* Additional styling */
+    /* Styling for the page */
     body {
-      font-family: 'Roboto', sans-serif;
-      background-color: #f5f5f5;
+        font-family: 'Roboto', sans-serif;
+        background-color: #f5f5f5;
+    }
+    .container {
+        display: flex;
+    }
+    .community-list {
+        flex: 3;
+        display: flex;
+        flex-wrap: wrap;
     }
     .card {
-      margin: 15px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s;
-      padding: 10px;
+        margin: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+        padding: 10px;
+        width: 30%;
     }
     .card:hover {
-      transform: translateY(-5px);
+        transform: translateY(-5px);
     }
     .card-title {
-      font-size: 1.2em;
-      font-weight: bold;
-    }
-    .card-text {
-      max-height: 60px;
-      overflow: hidden;
+        font-size: 1.2em;
+        font-weight: bold;
     }
     .button-container {
-      text-align: right;
-      margin-top: 10px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .btn-visit {
+        background-color: #008CBA;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-visit:hover {
+        background-color: #007bb5;
+    }
+    /* Right sidebar for buttons */
+    .sidebar {
+        flex: 1;
+        padding: 20px;
+    }
+    .sidebar button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 1em;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .btn-create {
+        background-color: #4CAF50;
+        color: white;
     }
     .btn-join {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
+        background-color: #f44336;
+        color: white;
     }
-    .btn-join:hover {
-      background-color: #45a049;
+    /* Modal styling for Create and Join */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        padding-top: 100px;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
     }
-    .btn-leave {
-      background-color: #f44336;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
+    .modal-content {
+        background-color: #fff;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 400px;
+        border-radius: 8px;
     }
-    .btn-leave:hover {
-      background-color: #e31b0c;
-    }
-    .create-form {
-      max-width: 400px;
-      margin: 20px auto;
-      padding: 20px;
-      background-color: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
     }
 </style>
 
 <h1>Community</h1>
 
-{{!-- Community List --}}
 <div class="container">
-  <div class="row">
-    {{#each data}}
-      <div class="col-md-4">
+    <!-- Community List Section -->
+    <div class="community-list">
+        {{#each data}}
         <div class="card">
-          <div class="card-body">
             <h5 class="card-title">{{name}}</h5>
-            <p class="card-text">{{description}}</p>
-            <p class="text-muted">Created by: {{created_by}}</p>
-            <p class="text-muted">Privacy: {{#if is_private}}Private{{else}}Public{{/if}}</p>
-
+            <p class="text-muted">{{description}}</p>
+            <p class="text-muted">Members: {{member_count}}</p>
             <div class="button-container">
-              {{#if is_member}}
-                <button class="btn-leave" onclick="leaveCommunity('{{id}}')">Leave</button>
-              {{else}}
-                <button class="btn-join" onclick="joinCommunity('{{id}}')">Join</button>
-              {{/if}}
+                <button class="btn-visit" onclick="visitCommunity('{{id}}')">Visit Community</button>
             </div>
-          </div>
         </div>
-      </div>
-    {{/each}}
-  </div>
+        {{/each}}
+    </div>
+
+    <!-- Sidebar with Create and Join Buttons -->
+    <div class="sidebar">
+        <button class="btn-create" onclick="openCreateModal()">Create Community</button>
+        <button class="btn-join" onclick="openJoinModal()">Join Community</button>
+    </div>
 </div>
 
-{{!-- Create New Community Form --}}
-<div class="create-form">
-  <h2>Create a New Community</h2>
-  <form action="/create-community" method="POST">
-    <div class="form-group">
-      <label for="community-name">Community Name</label>
-      <input type="text" id="community-name" name="name" class="form-control" required>
+<!-- Create Community Modal -->
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeCreateModal()">&times;</span>
+        <h2>Create a New Community</h2>
+        <form action="/create-community" method="POST">
+            <div class="form-group">
+                <label for="community-name">Community Name</label>
+                <input type="text" id="community-name" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="community-description">Description</label>
+                <textarea id="community-description" name="description" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="community-privacy">Privacy</label>
+                <select id="community-privacy" name="is_private" class="form-control">
+                    <option value="false">Public</option>
+                    <option value="true">Private</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Create Community</button>
+        </form>
     </div>
-    <div class="form-group">
-      <label for="community-description">Description</label>
-      <textarea id="community-description" name="description" class="form-control" rows="3" required></textarea>
+</div>
+
+<!-- Join Community Modal -->
+<div id="join-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeJoinModal()">&times;</span>
+        <h3>Join Community</h3>
+        <p>Enter Access Code:</p>
+        <input type="text" id="access-code" class="form-control" placeholder="Access Code" required>
+        <button class="btn btn-primary mt-3" onclick="submitAccessCode()">Submit</button>
     </div>
-    <div class="form-group">
-      <label for="community-privacy">Privacy</label>
-      <select id="community-privacy" name="is_private" class="form-control">
-        <option value="false">Public</option>
-        <option value="true">Private</option>
-      </select>
-    </div>
-    <button type="submit" class="btn btn-primary mt-3">Create Community</button>
-  </form>
 </div>
 
 <script>
-    // JavaScript functions for joining and leaving communities
-    async function joinCommunity(communityId) {
-      try {
-        const response = await fetch(`/join-community/${communityId}`, { method: 'POST' });
-        if (response.ok) {
-          alert("Joined community successfully!");
-          location.reload();
-        } else {
-          alert("Error joining community.");
-        }
-      } catch (error) {
-        console.error("Error:", error);
-        alert("An error occurred while joining the community.");
-      }
+    // JavaScript to open community page
+    function visitCommunity(communityId) {
+        window.location.href = `/community/${communityId}`;
     }
 
-    async function leaveCommunity(communityId) {
-      try {
-        const response = await fetch(`/leave-community/${communityId}`, { method: 'POST' });
-        if (response.ok) {
-          alert("Left community successfully!");
-          location.reload();
+    // Modal controls for Create Community
+    function openCreateModal() {
+        document.getElementById("create-modal").style.display = "block";
+    }
+    
+    function closeCreateModal() {
+        document.getElementById("create-modal").style.display = "none";
+    }
+
+    // Modal controls for Join Community
+    function openJoinModal() {
+        document.getElementById("join-modal").style.display = "block";
+    }
+
+    function closeJoinModal() {
+        document.getElementById("join-modal").style.display = "none";
+    }
+
+    async function submitAccessCode() {
+        const code = document.getElementById("access-code").value;
+        if (code) {
+            try {
+                const response = await fetch(`/join-community/${code}`, { method: 'POST' });
+                if (response.ok) {
+                    alert("Joined community successfully!");
+                    location.reload();
+                } else {
+                    alert("Invalid access code.");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred.");
+            }
         } else {
-          alert("Error leaving community.");
+            alert("Please enter an access code.");
         }
-      } catch (error) {
-        console.error("Error:", error);
-        alert("An error occurred while leaving the community.");
-      }
     }
 </script>

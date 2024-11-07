@@ -13,6 +13,7 @@ const bodyParser = require('body-parser');
 const session = require('express-session'); // To set the session object. To store or access session data, use the `req.session`, which is (generally) serialized as JSON by the store.
 const bcrypt = require('bcryptjs'); //  To hash passwords
 const axios = require('axios'); // To make HTTP requests from our server. We'll learn more about it in Part C.
+const crypto = require('crypto');
 
 // *****************************************************
 // <!-- Section 2 : Connect to DB -->
@@ -376,6 +377,42 @@ app.post('/leave-community/:id', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+app.post('/create-community', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).send("Unauthorized: Please log in to create a community.");
+  }
+  try {
+    const { name, description, is_private } = req.body;
+    const created_by = req.session.user.username;
+
+    // If the community is private, use the provided access code or generate one
+    const access_code = is_private === 'true' ? req.body.access_code || null : null;
+
+    // Insert the new community into the database
+    const result = await db.one(
+      `INSERT INTO communities (name, description, is_private, access_code, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`, // Ensure the correct identifier is used
+      [name, description, is_private === 'true', access_code, created_by]
+    );
+
+    // Redirect to the new community’s page
+    res.redirect(`/community/${result.community_id}`);
+  } catch (error) {
+    console.error('Error creating community:', error);
+
+    // Render error message if an error occurs
+    res.render('pages/communities', { // Ensure this path exists
+      error: 'There was an error creating the community. Please try again.',
+      user: req.session.user,
+      formData: { name, description, is_private }
+    });
+  }
+});
+
+
+
+
 
 
 

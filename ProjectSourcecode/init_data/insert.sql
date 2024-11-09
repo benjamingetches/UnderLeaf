@@ -13,9 +13,4 @@ INSERT INTO communities (name, description, is_private, access_code, created_by)
 ('Another Public Community', 'Another public space for all.', FALSE, NULL, 'alice_smith');
 
 -- Inserting friends after users
-INSERT INTO friends (username, friend_username) VALUES
-('john_doe', 'jane_doe'),
-('john_doe', 'alice_smith'),
-('jane_doe', 'bob_brown'),
-('alice_smith', 'carol_white'),
-('bob_brown', 'john_doe');
+

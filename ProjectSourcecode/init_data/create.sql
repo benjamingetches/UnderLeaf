@@ -49,18 +49,20 @@ CREATE TABLE IF NOT EXISTS community_messages (
     edited_at TIMESTAMP WITH TIME ZONE -- Optional; to track if the message was edited
 );
 
-
 -- TODO: friends table
+
 
 CREATE TYPE friend_status AS ENUM ('pending', 'accepted', 'rejected');
 
 CREATE TABLE IF NOT EXISTS friends (
-    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Establishes a foreign key relationships with users tabel
-    friend_username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Establishes a foreign key relationships with users tabel
-    status friend_status DEFAULT 'pending', -- Tracks friend request status
-    request_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Tracks the date the request was made
-    PRIMARY KEY (username, friend_username), -- Ensures unique friend relationships
-    CONSTRAINT fk_user_friends CHECK (username <> friend_username) -- Prevents users from friending themselves
+    id SERIAL PRIMARY KEY,
+    requester VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    addressee VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    status friend_status DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(requester, addressee),
+    CONSTRAINT different_users CHECK (requester <> addressee)
 );
 
 CREATE TABLE IF NOT EXISTS note_permissions (

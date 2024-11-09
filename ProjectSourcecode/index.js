@@ -421,56 +421,146 @@ app.post('/create-community', async (req, res) => {
 
 
 app.get('/friends', async (req, res) => {
-  try {
-    const user = req.session.user;
-    const friends = await db.any(`
-      SELECT f.*, u.email 
-      FROM friends f
-      JOIN users u ON f.friend_username = u.username
-      WHERE f.username = $1
-    `, [user.username]);
+    try {
+        const user = req.session.user;
 
-    res.render('pages/friends', { 
-      user, 
-      friends,
-      message: req.query.message
-    });
-  } catch (error) {
-    console.error('Error fetching friends:', error);
-    res.render('pages/friends', { 
-      user: req.session.user,
-      friends: [],
-      message: 'Error fetching friends list'
-    });
-  }
+        // Get pending friend requests
+        const pendingRequests = await db.any(`
+            SELECT id, requester, created_at 
+            FROM friends 
+            WHERE addressee = $1 AND status = 'pending'
+            ORDER BY created_at DESC
+        `, [user.username]);
+
+        // Get accepted friends
+        const friends = await db.any(`
+            SELECT f.id, 
+                   CASE 
+                       WHEN f.requester = $1 THEN f.addressee 
+                       ELSE f.requester 
+                   END as friend_username
+            FROM friends f
+            WHERE (f.requester = $1 OR f.addressee = $1)
+            AND f.status = 'accepted'
+        `, [user.username]);
+
+        res.render('pages/friends', {
+            user,
+            friends,
+            pendingRequests,
+            message: req.query.message
+        });
+    } catch (error) {
+        console.error('Error fetching friends data:', error);
+        res.render('pages/friends', {
+            user: req.session.user,
+            error: 'Error fetching friends data'
+        });
+    }
 });
 
-app.post('/add-friend', async (req, res) => {
-  try {
-    const { friendUsername } = req.body;
-    const user = req.session.user;
+app.post('/send-friend-request', async (req, res) => {
+    try {
+        const requester = req.session.user.username;
+        const { addressee } = req.body;
 
-    // Check if friend exists
-    const friendExists = await db.oneOrNone('SELECT username FROM users WHERE username = $1', [friendUsername]);
-    if (!friendExists) {
-      return res.status(404).send('User not found');
+        // Check if addressee exists
+        const addresseeExists = await db.oneOrNone('SELECT username FROM users WHERE username = $1', [addressee]);
+        if (!addresseeExists) {
+            return res.redirect('/friends?message=User not found');
+        }
+
+        // Check if request already exists
+        const existingRequest = await db.oneOrNone(
+            'SELECT * FROM friends WHERE (requester = $1 AND addressee = $2) OR (requester = $2 AND addressee = $1)',
+            [requester, addressee]
+        );
+
+        if (existingRequest) {
+            return res.redirect('/friends?message=Friend request already exists');
+        }
+
+        // Create friend request
+        await db.none(
+            'INSERT INTO friends (requester, addressee) VALUES ($1, $2)',
+            [requester, addressee]
+        );
+
+        res.redirect('/friends?message=Friend request sent');
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        res.redirect('/friends?message=Error sending friend request');
     }
+});
 
-    // Check if friendship already exists
-    const existingFriend = await db.oneOrNone(
-      'SELECT * FROM friends WHERE username = $1 AND friend_username = $2',
-      [user.username, friendUsername]
-    );
-    if (existingFriend) {
-      return res.status(400).send('Friendship already exists');
+app.post('/accept-friend-request', async (req, res) => {
+    try {
+        const { requestId } = req.body;
+        const user = req.session.user.username;
+
+        // Verify request exists and is addressed to current user
+        const request = await db.oneOrNone(
+            'SELECT * FROM friends WHERE id = $1 AND addressee = $2 AND status = $3',
+            [requestId, user, 'pending']
+        );
+
+        if (!request) {
+            return res.redirect('/friends?message=Invalid request');
+        }
+
+        // Accept request
+        await db.none(
+            'UPDATE friends SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            ['accepted', requestId]
+        );
+
+        res.redirect('/friends?message=Friend request accepted');
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        res.redirect('/friends?message=Error accepting friend request');
     }
+});
 
-    await db.none('INSERT INTO friends (username, friend_username) VALUES ($1, $2)', [user.username, friendUsername]);
-    res.redirect('/friends');
-  } catch (error) {
-    console.error('Error adding friend:', error);
-    res.status(500).send('Error adding friend');
-  }
+app.post('/reject-friend-request', async (req, res) => {
+    try {
+        const { requestId } = req.body;
+        const user = req.session.user.username;
+
+        await db.none(
+            'DELETE FROM friends WHERE id = $1 AND addressee = $2 AND status = $3',
+            [requestId, user, 'pending']
+        );
+
+        res.redirect('/friends?message=Friend request rejected');
+    } catch (error) {
+        console.error('Error rejecting friend request:', error);
+        res.redirect('/friends?message=Error rejecting friend request');
+    }
+});
+
+app.post('/remove-friend', async (req, res) => {
+    try {
+        const { friendId } = req.body;
+        const user = req.session.user.username;
+
+        // Verify friendship exists and user is part of it
+        const friendship = await db.oneOrNone(
+            'SELECT * FROM friends WHERE id = $1 AND (requester = $2 OR addressee = $2) AND status = $3',
+            [friendId, user, 'accepted']
+        );
+
+        if (!friendship) {
+            return res.redirect('/friends?message=Invalid friendship');
+        }
+
+        // Remove friendship
+        await db.none('DELETE FROM friends WHERE id = $1', [friendId]);
+
+        res.redirect('/friends?message=Friend removed successfully');
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.redirect('/friends?message=Error removing friend');
+    }
 });
 
 app.delete('/delete-note/:id', async (req, res) => {
@@ -523,18 +613,16 @@ app.post('/save-latex', async (req, res) => {
     const { title, content, username, category, noteId } = req.body;
 
     try {
-        // Sanitize the content before saving
         const sanitizedContent = content
-            .replace(/\u2018|\u2019/g, "'")   // Smart quotes
-            .replace(/\u201C|\u201D/g, '"')   // Smart double quotes
-            .replace(/\u2013|\u2014/g, '-')   // Em and en dashes
-            .replace(/'/g, "\\'")             // Escape single quotes/apostrophes
-            .replace(/"/g, '\\"');            // Escape double quotes
+            .replace(/\u2018|\u2019/g, "'")   
+            .replace(/\u201C|\u201D/g, '"')   
+            .replace(/\u2013|\u2014/g, '-')   
+            .replace(/'/g, "\\'")             
+            .replace(/"/g, '\\"');            
 
-        let existingNote;
+        // If noteId is provided, try to update that specific note
         if (noteId) {
-            // Check permissions if editing existing note
-            existingNote = await db.oneOrNone(`
+            const existingNote = await db.oneOrNone(`
                 SELECT n.*, 
                        CASE 
                          WHEN n.username = $1 THEN true
@@ -553,36 +641,60 @@ app.post('/save-latex', async (req, res) => {
             if (!existingNote.can_edit) {
                 return res.status(403).json({ success: false, error: 'No permission to edit' });
             }
-        } else {
-            // Check for existing note with same title by same user
-            existingNote = await db.oneOrNone(
-                'SELECT * FROM notes WHERE title = $1 AND username = $2',
-                [title, username]
+
+            await db.none(
+                'UPDATE notes SET content = $1, category = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+                [sanitizedContent, category, noteId]
             );
+            
+            return res.status(200).json({ 
+                success: true, 
+                noteId: noteId,
+                message: 'Note updated successfully'
+            });
         }
 
-        let resultNoteId;
-        let statusCode = 200;
+        // If no noteId, check if user can edit an existing note with this title
+        const existingNote = await db.oneOrNone(`
+            SELECT n.*, 
+                   CASE 
+                     WHEN n.username = $1 THEN true
+                     ELSE np.can_edit
+                   END as can_edit
+            FROM notes n
+            LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+            WHERE n.title = $2 AND (n.username = $1 OR np.username = $1)`,
+            [username, title]
+        );
 
         if (existingNote) {
+            if (!existingNote.can_edit) {
+                return res.status(403).json({ success: false, error: 'No permission to edit note with this title' });
+            }
+
+            // Update the existing note
             await db.none(
                 'UPDATE notes SET content = $1, category = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
                 [sanitizedContent, category, existingNote.id]
             );
-            resultNoteId = existingNote.id;
-        } else {
-            const result = await db.one(
-                'INSERT INTO notes (title, content, username, category) VALUES ($1, $2, $3, $4) RETURNING id',
-                [title, sanitizedContent, username, category]
-            );
-            resultNoteId = result.id;
-            statusCode = 201; // Created
+            
+            return res.status(200).json({ 
+                success: true, 
+                noteId: existingNote.id,
+                message: 'Note updated successfully'
+            });
         }
 
-        res.status(statusCode).json({ 
+        // Only create a new note if no existing note was found or user has no permission to edit an existing note with this title
+        const result = await db.one(
+            'INSERT INTO notes (title, content, username, category) VALUES ($1, $2, $3, $4) RETURNING id',
+            [title, sanitizedContent, username, category]
+        );
+        
+        res.status(201).json({ 
             success: true, 
-            noteId: resultNoteId,
-            message: statusCode === 201 ? 'Note created successfully' : 'Note updated successfully'
+            noteId: result.id,
+            message: 'Note created successfully'
         });
     } catch (error) {
         console.error('Error saving note:', error);
@@ -697,14 +809,23 @@ app.post('/process-selection', async (req, res) => {
 app.get('/get-friends-for-sharing', async (req, res) => {
   const user = req.session.user;
   try {
-    const friends = await db.any(
-      'SELECT friend_username FROM friends WHERE username = $1',
-      [user.username]
-    );
+    // Get only accepted friends for sharing
+    const friends = await db.any(`
+        SELECT 
+            CASE 
+                WHEN f.requester = $1 THEN f.addressee 
+                ELSE f.requester 
+            END as friend_username
+        FROM friends f
+        WHERE (f.requester = $1 OR f.addressee = $1)
+        AND f.status = 'accepted'
+        ORDER BY friend_username
+    `, [user.username]);
+    
     res.json(friends);
   } catch (error) {
-    console.error('Error fetching friends:', error);
-    res.status(500).send('Error fetching friends');
+    console.error('Error fetching friends for sharing:', error);
+    res.status(500).json({ error: 'Error fetching friends list' });
   }
 });
 
@@ -714,28 +835,185 @@ app.post('/share-note', async (req, res) => {
   const user = req.session.user;
 
   try {
-    const note = await db.one('SELECT * FROM notes WHERE id = $1 AND username = $2', 
-      [noteId, user.username]);
-
-    await db.none(
-      'INSERT INTO note_permissions (note_id, username, can_edit, can_read) VALUES ($1, $2, $3, $4)',
-      [noteId, shareWith, canEdit, true]
+    // First verify the note exists and user owns it
+    const note = await db.one(
+      'SELECT * FROM notes WHERE id = $1 AND username = $2', 
+      [noteId, user.username]
     );
 
-    res.status(201).json({ 
-        success: true, 
-        message: 'Note shared successfully'
+    // Verify friendship exists and is accepted
+    const friendship = await db.oneOrNone(`
+        SELECT * FROM friends 
+        WHERE ((requester = $1 AND addressee = $2) 
+            OR (requester = $2 AND addressee = $1))
+        AND status = 'accepted'`,
+        [user.username, shareWith]
+    );
+
+    if (!friendship) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Can only share notes with accepted friends' 
+      });
+    }
+
+    // Check if sharing already exists
+    const existingShare = await db.oneOrNone(
+      'SELECT * FROM note_permissions WHERE note_id = $1 AND username = $2',
+      [noteId, shareWith]
+    );
+
+    if (existingShare) {
+      // Update existing permissions
+      await db.none(
+        'UPDATE note_permissions SET can_edit = $1, updated_at = CURRENT_TIMESTAMP WHERE note_id = $2 AND username = $3',
+        [canEdit, noteId, shareWith]
+      );
+    } else {
+      // Create new permission
+      await db.none(
+        'INSERT INTO note_permissions (note_id, username, can_edit, can_read) VALUES ($1, $2, $3, true)',
+        [noteId, shareWith, canEdit]
+      );
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Note shared successfully'
     });
   } catch (error) {
     console.error('Error sharing note:', error);
     res.status(500).json({ 
-        success: false, 
-        error: error.message 
+      success: false, 
+      error: error.message 
     });
   }
 });
 
+// Add a route to get friendship status
+app.get('/friendship-status/:username', async (req, res) => {
+  try {
+    const currentUser = req.session.user.username;
+    const otherUser = req.params.username;
 
+    const friendship = await db.oneOrNone(`
+      SELECT 
+        id,
+        requester,
+        addressee,
+        status,
+        CASE 
+          WHEN requester = $1 THEN 'sent'
+          WHEN addressee = $1 THEN 'received'
+        END as direction
+      FROM friends 
+      WHERE (requester = $1 AND addressee = $2)
+        OR (requester = $2 AND addressee = $1)`,
+      [currentUser, otherUser]
+    );
+
+    res.json({
+      status: friendship ? friendship.status : 'none',
+      direction: friendship ? friendship.direction : null,
+      id: friendship ? friendship.id : null
+    });
+  } catch (error) {
+    console.error('Error getting friendship status:', error);
+    res.status(500).json({ error: 'Error getting friendship status' });
+  }
+});
+
+// Update the editor route to include friend status
+app.get('/editor', async (req, res) => {
+  const user = req.session.user;
+  try {
+    // Get friend count for the navbar
+    const friendCount = await db.one(`
+      SELECT COUNT(*) as count
+      FROM friends
+      WHERE (requester = $1 OR addressee = $1)
+      AND status = 'accepted'`,
+      [user.username]
+    );
+
+    // Get pending request count
+    const pendingCount = await db.one(`
+      SELECT COUNT(*) as count
+      FROM friends
+      WHERE addressee = $1 AND status = 'pending'`,
+      [user.username]
+    );
+
+    res.render('pages/editor', { 
+      user,
+      friendCount: friendCount.count,
+      pendingCount: pendingCount.count
+    });
+  } catch (error) {
+    console.error('Error loading editor:', error);
+    res.render('pages/editor', { user });
+  }
+});
+
+// Update the notes route to include friend info
+app.get('/notes', async (req, res) => {
+  const user = req.session.user;
+  try {
+    const notes = await db.any(`
+      SELECT DISTINCT n.id, n.title, n.username, 
+             CASE 
+               WHEN n.username = $1 THEN true
+               ELSE np.can_edit
+             END as can_edit,
+             CASE 
+               WHEN n.username = $1 THEN 'Owner'
+               ELSE 'Shared'
+             END as access_type,
+             CASE 
+               WHEN n.username = $1 THEN true
+               ELSE np.can_read
+             END as can_read,
+             EXISTS(
+               SELECT 1 FROM friends f
+               WHERE ((f.requester = n.username AND f.addressee = $1)
+                  OR (f.requester = $1 AND f.addressee = n.username))
+               AND f.status = 'accepted'
+             ) as is_friend
+      FROM notes n
+      LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+      WHERE n.username = $1 
+      OR (np.username = $1 AND np.can_read = true)
+      ORDER BY n.title`, 
+      [user.username]
+    );
+
+    // Get friend count and pending count for navbar
+    const friendCount = await db.one(`
+      SELECT COUNT(*) as count
+      FROM friends
+      WHERE (requester = $1 OR addressee = $1)
+      AND status = 'accepted'`,
+      [user.username]
+    );
+
+    const pendingCount = await db.one(`
+      SELECT COUNT(*) as count
+      FROM friends
+      WHERE addressee = $1 AND status = 'pending'`,
+      [user.username]
+    );
+
+    res.render('pages/notes', { 
+      user, 
+      notes,
+      friendCount: friendCount.count,
+      pendingCount: pendingCount.count
+    });
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).send('Error fetching notes');
+  }
+});
 
 // *****************************************************
 // <!-- Section 5 : Start Server-->

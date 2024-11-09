@@ -1,72 +1,74 @@
 <h1 class="text-center my-4">Friends</h1>
 
-<div class="container">
-  <!-- Friends Table -->
-  <table class="table table-striped table-bordered">
-    <thead class="thead-dark">
-      <tr>
-        <th>Friend Username</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each friends}}
-        <tr>
-          <td>{{this.friend_username}}</td>
-          <td>
-            <!-- Edit Friend Button (opens a modal) -->
-            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editFriendModal{{this.id}}">
-              Edit
-            </button>
-            
-            <!-- Delete Friend Form -->
-            <form action="/delete-friend/{{this.id}}" method="POST" style="display:inline;">
-              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-            </form>
-          </td>
-        </tr>
+<div class="container mt-4">
+    {{#if message}}
+    <div class="alert alert-info">{{message}}</div>
+    {{/if}}
 
-        <!-- Edit Friend Modal -->
-        <div class="modal fade" id="editFriendModal{{this.id}}" tabindex="-1" role="dialog" aria-labelledby="editFriendModalLabel{{this.id}}" aria-hidden="true">
-          <div class="modal-dialog" role="document">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="editFriendModalLabel{{this.id}}">Edit Friend</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <form action="/edit-friend/{{this.id}}" method="POST">
-                <div class="modal-body">
-                  <div class="form-group">
-                    <label for="friendUsername{{this.id}}">Friend Username</label>
-                    <input type="text" class="form-control" id="friendUsername{{this.id}}" name="friendUsername" value="{{this.friend_username}}" required>
-                  </div>
+    <div class="row">
+        <!-- Friend Requests -->
+        <div class="col-md-6">
+            <h3>Friend Requests</h3>
+            {{#if pendingRequests}}
+            <div class="list-group">
+                {{#each pendingRequests}}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{this.requester}}</span>
+                    <div>
+                        <form class="d-inline" action="/accept-friend-request" method="POST">
+                            <input type="hidden" name="requestId" value="{{this.id}}">
+                            <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                        </form>
+                        <form class="d-inline" action="/reject-friend-request" method="POST">
+                            <input type="hidden" name="requestId" value="{{this.id}}">
+                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                        </form>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                  <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-              </form>
+                {{/each}}
             </div>
-          </div>
+            {{else}}
+            <p>No pending friend requests</p>
+            {{/if}}
         </div>
-      {{/each}}
-    </tbody>
-  </table>
 
-  <!-- Add Friend Form -->
-  <form action="/add-friend" method="POST" class="mt-4">
-    <div class="form-group row">
-      <label for="friendUsername" class="col-sm-2 col-form-label">Add Friend:</label>
-      <div class="col-sm-8">
-        <input type="text" class="form-control" id="friendUsername" name="friendUsername" placeholder="Enter friend's username" required>
-      </div>
-      <div class="col-sm-2">
-        <button type="submit" class="btn btn-success">Add Friend</button>
-      </div>
+        <!-- Friends List -->
+        <div class="col-md-6">
+            <h3>My Friends</h3>
+            {{#if friends}}
+            <div class="list-group">
+                {{#each friends}}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{this.friend_username}}</span>
+                    <form class="d-inline" action="/remove-friend" method="POST">
+                        <input type="hidden" name="friendId" value="{{this.id}}">
+                        <button type="submit" class="btn btn-danger btn-sm">Remove Friend</button>
+                    </form>
+                </div>
+                {{/each}}
+            </div>
+            {{else}}
+            <p>No friends yet</p>
+            {{/if}}
+        </div>
     </div>
-  </form>
+
+    <!-- Add Friend Form -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Send Friend Request</h5>
+                    <form action="/send-friend-request" method="POST">
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="addressee" placeholder="Enter username" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Request</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

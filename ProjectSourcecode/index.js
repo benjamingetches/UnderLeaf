@@ -1195,3 +1195,28 @@ app.get('/get-note/:id', async (req, res) => {
         res.status(500).send('Error fetching note');
     }
 });
+
+
+// CHRIS
+app.post('/rewrite-text', async (req, res) => {
+  const { text } = req.body;
+  const prompt = `
+    ...
+    `
+    try {
+      const response = await openai.createChatCompletion({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 2048,
+        temperature: 0,
+      });
+      const updatedLatex = response.data.choices[0].message.content.trim();
+   
+      res.json({ updatedLatex });
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      res.status(500).json({ error: 'Failed to process the request.' });
+    }
+});

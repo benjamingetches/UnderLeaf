@@ -74,6 +74,9 @@ const dbConfig = {
 
 const db = pgp(dbConfig);
 
+// Update this line if it exists, or add it if it doesn't
+app.use(express.static(path.join(__dirname, 'public')));
+
 // test your database
 db.connect()
   .then(obj => {

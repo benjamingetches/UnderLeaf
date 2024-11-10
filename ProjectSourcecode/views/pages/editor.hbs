@@ -392,6 +392,50 @@ body {
   </div>
 </div>
 
+<!-- Add this modal HTML right after the existing contextModal div -->
+<div class="modal fade" id="textToLatexModal" tabindex="-1" aria-labelledby="textToLatexModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="textToLatexModalLabel">Convert Text to LaTeX</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          Paste your text below and our AI will convert it to LaTeX format. Works best with mathematical and scientific text!
+        </div>
+
+        <div class="mb-3">
+          <label for="textInput" class="form-label fw-bold">Your Text</label>
+          <textarea 
+            id="textInput" 
+            class="form-control" 
+            rows="10" 
+            placeholder="Paste your text here..."
+          ></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Additional Instructions (Optional)</label>
+          <textarea 
+            id="textInstructions" 
+            class="form-control" 
+            rows="2" 
+            placeholder="Any specific formatting preferences or instructions..."
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="convertToLatex" class="btn btn-primary">
+          <i class="fas fa-magic me-2"></i>Convert to LaTeX
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CodeMirror JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
 <!-- CodeMirror LaTeX Mode -->
@@ -633,10 +677,8 @@ document.getElementById('new-blank').addEventListener('click', () => {
 });
 
 document.getElementById('new-from-text').addEventListener('click', () => {
-  // We'll implement this functionality later
-  // TODO: Chris/Harrison
-  // GPT 3.5 call already exists for the rewrite feature, probably can reuse the code in index.js
-  alert('This feature is coming soon!');
+  const textToLatexModal = new bootstrap.Modal(document.getElementById('textToLatexModal'));
+  textToLatexModal.show();
 });
 
 
@@ -910,6 +952,11 @@ function getSelectedHtml() {
     }
   });
 
+
+  //TODO: add event listener for the submitTextToTex button CHRIS
+  
+
+
   // Event handler for the context modal submission CHRIS
   document.getElementById('submitContext').addEventListener('click', async () => {
     const latexSource = editor.getValue();
@@ -970,6 +1017,72 @@ function getSelectedHtml() {
     
     // Re-render the preview
     renderLaTeX();
+  });
+
+  // Replace the existing convertToLatex event listener with this updated version
+  document.getElementById('convertToLatex').addEventListener('click', async () => {
+    const textInput = document.getElementById('textInput').value.trim();
+    const instructions = document.getElementById('textInstructions').value.trim();
+    
+    if (!textInput) {
+      alert('Please enter some text to convert.');
+      return;
+    }
+    
+    // Show loading state
+    const convertBtn = document.getElementById('convertToLatex');
+    const originalBtnHtml = convertBtn.innerHTML;
+    convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Converting...';
+    convertBtn.disabled = true;
+    
+    try {
+      const response = await fetch('/rewrite-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: textInput,
+          instructions: instructions
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to convert text');
+      }
+
+      const result = await response.json();
+      
+      // Update the editor with the converted LaTeX
+      editor.setValue(result.latex);
+      
+      // Update the title if none exists
+      const titleInput = document.getElementById('note-title');
+      if (!titleInput.value.trim()) {
+        titleInput.value = 'Converted Text ' + new Date().toLocaleDateString();
+      }
+      
+      // Render the preview
+      renderLaTeX();
+      
+      // Close the modal
+      const textToLatexModal = bootstrap.Modal.getInstance(document.getElementById('textToLatexModal'));
+      textToLatexModal.hide();
+      
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error converting text: ' + error.message);
+    } finally {
+      // Reset button state
+      convertBtn.innerHTML = originalBtnHtml;
+      convertBtn.disabled = false;
+    }
+  });
+
+  // Add modal cleanup on hide
+  document.getElementById('textToLatexModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('textInput').value = '';
+    document.getElementById('textInstructions').value = '';
   });
 
 </script>

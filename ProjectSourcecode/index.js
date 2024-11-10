@@ -1202,11 +1202,29 @@ app.get('/get-note/:id', async (req, res) => {
 
 // CHRIS
 app.post('/rewrite-text', async (req, res) => {
-  const { text } = req.body;
+  const { text, instructions } = req.body;
   const prompt = `
-    ...
-    `
+  You are an AI assistant that edits English documents based on user instructions.
+
+  **Task**: Modify the English Source code according to the user's request. Only edit the specific section corresponding to the selected HTML content. Do not change any other parts of the document.
+
+  **English Text to Modify**:
+  ${text}
+
+  **User's Instructions**:
+  ${instructions}
+
+  **Instructions**:
+  - Identify the LaTeX code corresponding to the selected English Textcontent.
+  - Apply the user's requested instructions to that portion of English Text.
+  -All mathematical equations need to be wrapped in "$$" on both side of the equation.
+  - Return the entire updated English text, converting it into LaTex.
+  
+
+  **Output**:
+  [Provide only the updated LaTeX code.]`
     try {
+      console.log(prompt)
       const response = await openai.createChatCompletion({
         model: 'gpt-3.5-turbo',
         messages: [

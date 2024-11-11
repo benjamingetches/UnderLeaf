@@ -58,7 +58,10 @@ const hbs = handlebars.create({
       return stripped.length > length ? 
              stripped.substring(0, length) + '...' : 
              stripped;
-    }
+    },
+    firstLetter: function(username) {
+      return username ? username.charAt(0).toUpperCase() : '';
+  }
   }
 });
 
@@ -1095,6 +1098,32 @@ app.get('/editor', async (req, res) => {
   } catch (error) {
     console.error('Error loading editor:', error);
     res.render('pages/editor', { user });
+  }
+});
+
+app.post('/change-password', async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const user = req.session.user;
+
+  try {
+    // Fetch the user from the database
+    const dbUser = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [user.username]);
+
+    // Verify the old password
+    const passwordValid = await bcrypt.compare(oldPassword, dbUser.password);
+    if (!passwordValid) {
+      return res.status(401).json({ error: 'Old password is incorrect' });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update the password in the database
+    await db.none('UPDATE users SET password = $1 WHERE username = $2', [hashedPassword, user.username]);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

@@ -363,38 +363,41 @@
   function closeUserMenu() {
     document.getElementById('userMenuModal').style.display = 'none';
   } 
-  document.getElementById('changePasswordForm').addEventListener('submit', async (event) => {
-    event.preventDefault(); // Prevent the default form submission
+  document.addEventListener('DOMContentLoaded', function() {
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+      changePasswordForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const oldPassword = document.getElementById('oldPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
 
-    const oldPassword = document.getElementById('oldPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+        if (newPassword !== confirmPassword) {
+          alert('New password and confirmation do not match.');
+          return;
+        }
 
-    // Check if new password and confirm password match
-    if (newPassword !== confirmPassword) {
-      alert('New password and confirmation do not match.');
-      return;
-    }
+        try {
+          const response = await fetch('/change-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ oldPassword, newPassword }),
+          });
 
-    try {
-      const response = await fetch('/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ oldPassword, newPassword }),
+          if (response.ok) {
+            alert('Password changed successfully!');
+            closeUserMenu();
+          } else {
+            const errorData = await response.json();
+            alert(`Error: ${errorData.error}`);
+          }
+        } catch (error) {
+          console.error('Error changing password:', error);
+          alert('An error occurred while changing the password.');
+        }
       });
-
-      if (response.ok) {
-        alert('Password changed successfully!');
-        closeUserMenu(); // Close the modal after successful change
-      } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.error}`);
-      }
-    } catch (error) {
-      console.error('Error changing password:', error);
-      alert('An error occurred while changing the password.');
     }
   });
 </script>

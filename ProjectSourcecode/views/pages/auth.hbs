@@ -19,6 +19,9 @@
             Don't have an account?
             <a href="/register">Sign Up.</a>
           </p>
+          <p class="signup">
+            <a href="/forgot-password" >Forgot Password?</a>
+          </p>
         </form>
       </div>
     </div>
@@ -264,22 +267,44 @@ section .container.active .signupBx {
     transform: translateX(0);
   }
 }
+section .container .user .formBx form .forgot-password {
+  position: relative;
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #555;
+  text-transform: uppercase;
+  font-weight: 300;
+  text-align: center;
+}
+
+section .container .user .formBx form .forgot-password a {
+  font-weight: 600;
+  text-decoration: none;
+  color: #accaa1;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM Content Loaded');
   const container = document.querySelector('.container');
-  const toggleLinks = document.querySelectorAll('.toggle-form');
-
-  toggleLinks.forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation(); // Prevent the click from bubbling up to the form
-      container.classList.toggle('active');
-    });
-  });
+  console.log('Container:', container);
+  if (container) {
+    const toggleLinks = document.querySelectorAll('.toggle-form');
+    console.log('Toggle Links:', toggleLinks);
+    
+    if (toggleLinks.length > 0) {
+      toggleLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.toggle('active');
+        });
+      });
+    }
+  }
 });
-
 
 function handleSubmit(event) {
   if (!event.submitter || !event.submitter.matches('input[type="submit"]')) {
@@ -287,4 +312,4 @@ function handleSubmit(event) {
     event.preventDefault();
   }
 }
-</script> 
+</script>

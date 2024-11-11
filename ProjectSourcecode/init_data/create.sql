@@ -73,3 +73,11 @@ CREATE TABLE IF NOT EXISTS note_permissions (
     shared_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (note_id, username)
 );
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token VARCHAR(64) PRIMARY KEY,
+    username VARCHAR(50) REFERENCES users(username),
+    expiration_timestamp TIMESTAMP WITH TIME ZONE,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

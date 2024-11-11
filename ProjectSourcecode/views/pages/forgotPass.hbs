@@ -1,0 +1,272 @@
+{{!< layouts/main}}
+
+<section>
+  <div class="container">
+    <div class="user signinBx">
+      <div class="imgBx">
+        <img src="/images/UnderLEaf.png" alt="UnderLeaf Logo" />
+      </div>
+      <div class="formBx">
+        <div id="requestResetForm">
+          <form id="passwordResetRequestForm">
+            <h2>Reset Password</h2>
+            {{#if error}}
+              <div class="alert alert-danger">{{error}}</div>
+            {{/if}}
+            <input type="email" name="email" placeholder="Email Address" required />
+            <input type="submit" value="Send Reset Link" />
+            <p class="signup">
+              Remember your password?
+              <a href="/login">Sign In</a>
+            </p>
+          </form>
+        </div>
+
+        <div id="tokenForm" style="display: none;">
+          <form id="tokenValidationForm">
+            <h2>Enter Reset Code</h2>
+            <input type="email" name="email" placeholder="Confirm your email" required />
+            <input type="text" name="token" placeholder="Enter reset code" required />
+            <input type="submit" value="Verify Code" />
+          </form>
+        </div>
+
+        <div id="newPasswordForm" style="display: none;">
+          <form id="passwordUpdateForm">
+            <h2>Set New Password</h2>
+            <input type="password" name="newPassword" placeholder="New Password" required />
+            <input type="password" name="confirmPassword" placeholder="Confirm Password" required />
+            <input type="hidden" name="token" id="resetToken" />
+            <input type="submit" value="Update Password" />
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700;800&display=swap');
+
+  section {
+    position: relative;
+    min-height: 100vh;
+    background-color: #accaa1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+
+  section .container {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    background: #fff;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border-radius: 10px;
+  }
+
+  section .container .user {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+  }
+
+  section .container .user .imgBx {
+    position: relative;
+    width: 50%;
+    height: 100%;
+    background: #bcecac;
+    overflow: hidden;
+  }
+
+  section .container .user .imgBx img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  section .container .user .formBx {
+    position: relative;
+    width: 50%;
+    height: 100%;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    transition: 0.5s;
+  }
+
+  section .container .user .formBx form h2 {
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 10px;
+    color: #555;
+  }
+
+  section .container .user .formBx form input {
+    position: relative;
+    width: 100%;
+    padding: 10px;
+    background: #f5f5f5;
+    color: #333;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    margin: 8px 0;
+    font-size: 14px;
+    letter-spacing: 1px;
+    font-weight: 300;
+    border-radius: 5px;
+  }
+
+  section .container .user .formBx form input[type='submit'] {
+    max-width: 100%;
+    background: #accaa1;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    transition: 0.5s;
+  }
+
+  section .container .user .formBx form input[type='submit']:hover {
+    background: #bcecac;
+  }
+
+  section .container .user .formBx form .signup {
+    position: relative;
+    margin-top: 20px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #555;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  section .container .user .formBx form .signup a {
+    font-weight: 600;
+    text-decoration: none;
+    color: #accaa1;
+  }
+
+  @media (max-width: 991px) {
+    section .container {
+      max-width: 400px;
+    }
+
+    section .container .imgBx {
+      display: none;
+    }
+
+    section .container .user .formBx {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const resetForm = document.getElementById('passwordResetRequestForm');
+  const tokenForm = document.getElementById('tokenValidationForm');
+  const passwordForm = document.getElementById('passwordUpdateForm');
+
+  if (resetForm) {
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = e.target.email.value;
+      
+      try {
+        const response = await fetch('/request-password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        if (response.ok) {
+          alert('Reset code has been sent to your email. Code expires in 15 minutes.');
+          document.getElementById('requestResetForm').style.display = 'none';
+          document.getElementById('tokenForm').style.display = 'block';
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to send reset code');
+        }
+      } catch (error) {
+        alert('An error occurred. Please try again.');
+      }
+    });
+  }
+
+  if (tokenForm) {
+    tokenForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = e.target.token.value;
+      const email = e.target.email.value;
+
+      try {
+        const response = await fetch('/verify-reset-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, email })
+        });
+
+        if (response.ok) {
+          document.getElementById('tokenForm').style.display = 'none';
+          document.getElementById('newPasswordForm').style.display = 'block';
+          document.getElementById('resetToken').value = token;
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Invalid or expired reset code');
+        }
+      } catch (error) {
+        alert('An error occurred. Please try again.');
+      }
+    });
+  }
+
+  if (passwordForm) {
+    passwordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPassword = e.target.newPassword.value;
+      const confirmPassword = e.target.confirmPassword.value;
+      const token = e.target.token.value;
+
+      if (newPassword !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+      }
+
+      try {
+        const response = await fetch('/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword })
+        });
+
+        if (response.ok) {
+          alert('Password successfully reset');
+          window.location.href = '/login';
+        } else {
+          alert('Failed to reset password');
+        }
+      } catch (error) {
+        alert('An error occurred. Please try again.');
+      }
+    });
+  }
+});
+</script>

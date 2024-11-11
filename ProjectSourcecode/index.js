@@ -14,6 +14,9 @@ const session = require('express-session'); // To set the session object. To sto
 const bcrypt = require('bcryptjs'); //  To hash passwords
 const axios = require('axios'); // To make HTTP requests from our server. We'll learn more about it in Part C.
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+
 
 // *****************************************************
 // <!-- Section 2 : Connect to DB -->
@@ -65,8 +68,17 @@ const hbs = handlebars.create({
   }
 });
 
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  },
 
-// database configuration
+});
+
 const dbConfig = {
   host: 'db', // the database server
   port: 5432, // the database port
@@ -129,7 +141,135 @@ const openai = new OpenAIApi(configuration);
 app.get('/welcome', (req, res) => {
   res.status(200).json({status: 'success', message: 'Welcome!'});
 });
+app.get('/forgot-password', (req, res) => {
+  console.log('Forgot password route hit');
+  try {
+    res.render('pages/forgotPass', { 
+      hideNav: true,
+      message: req.query.message,
+      error: req.query.error,
+      layout: 'main'  // explicitly specify the layout
+    });
+  } catch (error) {
+    console.error('Error rendering forgot password page:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post('/request-password-reset', async (req, res) => {
+  const { email } = req.body;
+  console.log('Attempting password reset for:', email);
+  
+  try {
+    // First, ensure the table exists
+    await db.none(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token VARCHAR(64) PRIMARY KEY,
+        username VARCHAR(50) REFERENCES users(username),
+        expiration_timestamp TIMESTAMP WITH TIME ZONE,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
+    const user = await db.oneOrNone('SELECT username FROM users WHERE email = $1', [email]);
+    
+    if (!user) {
+      console.log('No user found with email:', email);
+      return res.status(404).json({ error: 'No account found with this email' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expirationTime = new Date(Date.now() + 15 * 60 * 1000);
+
+    await db.none(
+      'INSERT INTO password_reset_tokens (token, username, expiration_timestamp) VALUES ($1, $2, $3)',
+      [token, user.username, expirationTime]
+    );
+
+    console.log('Sending email to:', email);
+    
+    try {
+      await transporter.sendMail({
+        from: `"UnderLeaf Team" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Password Reset Request',
+        text: `Your password reset code is: ${token}\n\nThis code will expire in 15 minutes.`
+      });
+      console.log('Email sent successfully');
+      res.json({ message: 'Reset code sent successfully' });
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      res.status(500).json({ error: 'Failed to send email' });
+    }
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ error: 'Failed to process reset request' });
+  }
+});
+app.post('/verify-reset-token', async (req, res) => {
+  const { token, email } = req.body;
+
+  try {
+    const tokenRecord = await db.oneOrNone(
+      `SELECT t.*, u.email 
+       FROM password_reset_tokens t
+       JOIN users u ON t.username = u.username
+       WHERE t.token = $1 
+       AND t.used = FALSE 
+       AND t.expiration_timestamp > NOW()`,
+      [token]
+    );
+
+    if (!tokenRecord) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    if (tokenRecord.email !== email) {
+      return res.status(400).json({ error: 'Email does not match token' });
+    }
+
+    res.json({ valid: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to verify token' });
+  }
+});
+
+// Reset password
+app.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    // Get user info and verify token in one query
+    const tokenRecord = await db.oneOrNone(`
+      SELECT t.username 
+      FROM password_reset_tokens t
+      WHERE t.token = $1 
+      AND t.used = FALSE 
+      AND t.expiration_timestamp > NOW()`,
+      [token]
+    );
+
+    if (!tokenRecord) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and mark token as used in a transaction
+    await db.tx(async t => {
+      await t.none('UPDATE users SET password = $1 WHERE username = $2', 
+        [hashedPassword, tokenRecord.username]);
+      await t.none('UPDATE password_reset_tokens SET used = TRUE WHERE token = $1', 
+        [token]);
+    });
+
+    res.json({ message: 'Password reset successful' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
 // Add these before any middleware or routes
 app.use((req, res, next) => {
     console.log('Incoming request:', {
@@ -148,7 +288,7 @@ const auth = (req, res, next) => {
         publicPath: ['/login', '/register', '/logout', '/auth'].includes(req.path)
     });
     
-    const publicPaths = ['/login', '/register', '/logout'];
+    const publicPaths = ['/login', '/register', '/logout', '/request-password-reset', 'verify-reset-token', 'reset-password'];
     if (!req.session.user && !publicPaths.includes(req.path)) {
         console.log('Redirecting to login - unauthorized access');
         return res.redirect('/login');
@@ -307,6 +447,7 @@ app.get('/notes', async (req, res) => {
         res.status(500).send('Error fetching notes');
     }
 });
+
 
 
 //communities endpoints start=====================
@@ -1191,12 +1332,39 @@ app.get('/notes', async (req, res) => {
   }
 });
 
+// forgot pass
+
+
+
+
+// Verify reset token
+
+async function cleanupExpiredTokens() {
+  try {
+    await db.none('DELETE FROM password_reset_tokens WHERE expiration_timestamp < NOW() OR used = TRUE');
+  } catch (error) {
+    console.error('Token cleanup error:', error);
+  }
+}
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
+// Run cleanup on server start
+cleanupExpiredTokens();
 // *****************************************************
 // <!-- Section 5 : Start Server-->
 // *****************************************************
 // starting the server and keeping the connection open to listen for more requests
+
 module.exports = app.listen(3000);
 console.log('Server is listening on port 3000');
+
+// Test the connection when server starts
+transporter.verify(function(error, success) {
+  if (error) {
+    console.log('Email setup error:', error);
+  } else {
+    console.log('Email server is ready to send messages');
+  }
+});
 
 // Add this helper function at the top of your file
 function unescapeLatex(text) {

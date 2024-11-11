@@ -1,5 +1,5 @@
 {{!< layouts/main}}
-
+<div id="notification" class="notification"></div>
 <section>
   <div class="container">
     <div class="user signinBx">
@@ -40,7 +40,8 @@
             <input type="submit" value="Update Password" />
           </form>
         </div>
-      </div>
+        
+
     </div>
   </div>
 </section>
@@ -177,9 +178,57 @@
       width: 100%;
     }
   }
+    .notification {
+        position: fixed;
+        left: 50%;
+        top: 20px;
+        transform: translateX(-50%) translateY(-20px); /* Center horizontally */
+        padding: 15px 25px;
+        background-color: #fff; /* White background */
+        color: #555; /* Dark text */
+        border-left: 4px solid #accaa1; /* Green accent */
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        opacity: 0;
+        transition: all 0.5s ease;
+        z-index: 1000;
+        min-width: 300px;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .notification.hide {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
 </style>
 
 <script>
+function showNotification(message, redirect = false) {
+  const notification = document.getElementById('notification');
+  notification.textContent = message;
+  notification.classList.add('show');
+  
+  if (redirect) {
+    // Store the message in localStorage before redirecting
+    localStorage.setItem('notification', message);
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 2000); // Give user 2 seconds to see the message before redirect
+  } else {
+    setTimeout(() => {
+      notification.classList.add('hide');
+      setTimeout(() => {
+        notification.classList.remove('show', 'hide');
+      }, 500);
+    }, 3000);
+  }
+}
 document.addEventListener('DOMContentLoaded', function() {
   const resetForm = document.getElementById('passwordResetRequestForm');
   const tokenForm = document.getElementById('tokenValidationForm');
@@ -198,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (response.ok) {
-          alert('Reset code has been sent to your email. Code expires in 15 minutes.');
+          showNotification('Reset code has been sent to your email. Code expires in 15 minutes.');
           document.getElementById('requestResetForm').style.display = 'none';
           document.getElementById('tokenForm').style.display = 'block';
         } else {
@@ -233,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
           alert(data.error || 'Invalid or expired reset code');
         }
       } catch (error) {
-        alert('An error occurred. Please try again.');
+        showNotification('An error occurred. Please try again.');
       }
     });
   }
@@ -246,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const token = e.target.token.value;
 
       if (newPassword !== confirmPassword) {
-        alert('Passwords do not match');
+        showNotification('Passwords do not match');
         return;
       }
 
@@ -258,13 +307,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (response.ok) {
-          alert('Password successfully reset');
+          showNotification('Password successfully reset! Redirecting to log in...', true);
           window.location.href = '/login';
         } else {
-          alert('Failed to reset password');
+          showNotification('Failed to reset password');
         }
       } catch (error) {
-        alert('An error occurred. Please try again.');
+        showNotification('An error occurred. Please try again.');
       }
     });
   }

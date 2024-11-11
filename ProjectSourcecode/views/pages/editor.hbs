@@ -1085,4 +1085,18 @@ function getSelectedHtml() {
     document.getElementById('textInstructions').value = '';
   });
 
+//ADDED BELOW TO DEBUG DROPDOWN BUTTON
+// Manually initialize the Bootstrap dropdowns
+ document.addEventListener('DOMContentLoaded', function() {
+    var loadNotesBtn = new bootstrap.Dropdown(document.getElementById('load-notes-btn'));
+    var newNoteBtn = new bootstrap.Dropdown(document.getElementById('new-note-btn'));
+
+    // Add event listeners to manually toggle the dropdowns on click
+    document.getElementById('load-notes-btn').addEventListener('click', function() {
+      loadNotesBtn.toggle();
+    });
+    document.getElementById('new-note-btn').addEventListener('click', function() {
+      newNoteBtn.toggle();
+    });
+  });
 </script>

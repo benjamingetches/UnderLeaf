@@ -8,6 +8,7 @@
         "express": "^4.6.1",
         "express-handlebars": "^7.1.2",
         "express-session": "1.17.3",
+        "nodemailer": "^6.9.9",
         "nodemon": "2.0.20",
         "openai": "^3.2.1",
         "pg-promise": "^10.11.1"

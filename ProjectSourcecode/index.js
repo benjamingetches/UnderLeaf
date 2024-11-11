@@ -199,7 +199,8 @@ app.post('/login', async (req, res) => {
         if (!user) {
             return res.status(401).render('pages/auth', { 
                 loginError: 'Invalid username',
-                isRegister: false
+                isRegister: false,
+                hideNav: true  // Hide the navbar on the login page
             });
         }
         
@@ -207,7 +208,8 @@ app.post('/login', async (req, res) => {
         if (!passwordValid) {
             return res.status(401).render('pages/auth', { 
                 message: 'Invalid password',
-                isRegister: false
+                isRegister: false,
+                hideNav: true  // Hide the navbar on the login page
             });
         }
         
@@ -218,7 +220,8 @@ app.post('/login', async (req, res) => {
         console.error('Login error:', error);
         res.status(500).render('pages/auth', { 
             loginError: 'An error occurred during login',
-            isRegister: false
+            isRegister: false,
+            hideNav: true  // Hide the navbar on the login page
         });
     }
 });
@@ -237,7 +240,8 @@ app.post('/register', async (req, res) => {
         console.error('Registration error:', error);
         res.status(409).render('pages/auth', { 
             registerError: 'Username/email already exists',
-            isRegister: true
+            isRegister: true,
+            hideNav: true  // Hide the navbar on the login page
         });
     }
 });

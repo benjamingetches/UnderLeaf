@@ -304,7 +304,7 @@ const auth = (req, res, next) => {
         publicPath: ['/login', '/register', '/logout', '/auth'].includes(req.path)
     });
     
-    const publicPaths = ['/login', '/register', '/logout', '/request-password-reset', 'verify-reset-token', 'reset-password'];
+    const publicPaths = ['/login', '/register', '/logout', '/request-password-reset', '/verify-reset-token', '/reset-password'];
     if (!req.session.user && !publicPaths.includes(req.path)) {
         console.log('Redirecting to login - unauthorized access');
         return res.redirect('/login');

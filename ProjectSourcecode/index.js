@@ -193,7 +193,23 @@ app.post('/request-password-reset', async (req, res) => {
         from: `"UnderLeaf Team" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: 'Password Reset Request',
-        text: `Your password reset code is: ${token}\n\nThis code will expire in 15 minutes.`
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <img src="cid:underleafLogo" alt="UnderLeaf Logo" style="width: 200px; margin-bottom: 20px;"/>
+            <h2 style="color: #555;">Hi from UnderLeaf Team!</h2>
+            <p style="color: #666; line-height: 1.5;">There was a password reset associated with your email. If you did not request this, you can safely ignore this email.</p>
+            <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #accaa1; margin: 20px 0;">
+              <p style="margin: 0; color: #555;">Your reset token is: <strong>${token}</strong></p>
+              <p style="margin: 5px 0 0; color: #777; font-size: 0.9em;">This code expires in 15 minutes</p>
+            </div>
+            <p style="color: #666;">Thanks!<br>The UnderLeaf Team</p>
+          </div>
+        `,
+        attachments: [{
+          filename: 'UnderLEaf.png',
+          path: 'public/images/UnderLEaf.png',
+          cid: 'underleafLogo'
+        }]
       });
       console.log('Email sent successfully');
       res.json({ message: 'Reset code sent successfully' });

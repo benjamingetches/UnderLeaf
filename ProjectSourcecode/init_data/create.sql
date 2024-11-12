@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS community_roles (
     description TEXT -- Description of the role and its permissions
 );
 
-CREATE TABLE IF NOT EXISTS community_user_roles (
+CREATE TABLE IF NOT EXISTS community_memberships (
     community_id INT REFERENCES communities(community_id) ON DELETE CASCADE,
     username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
     role_id INT REFERENCES community_roles(role_id) ON DELETE SET NULL,

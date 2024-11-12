@@ -120,6 +120,7 @@ const openai = new OpenAIApi(configuration);
 // <!-- Section 4 : API Routes -->
 // *****************************************************
 
+
 app.get('/welcome', (req, res) => {
   res.status(200).json({status: 'success', message: 'Welcome!'});
 });
@@ -382,40 +383,69 @@ app.post('/leave-community/:id', async (req, res) => {
   }
 });
 
-app.post('/create-community', async (req, res) => {
-  if (!req.session.user) {
+/*app.post('/create-community', async (req, res) => {
+  const user = req.session.user;
+  if (!user) {
     return res.status(401).send("Unauthorized: Please log in to create a community.");
   }
-
+  console.log(req.body)
   try {
     const { name, description, is_private } = req.body;
-    const created_by = req.session.user.username;
-
-    // If the community is private, use the provided access code or generate one
+    const created_by = user.username;
     const access_code = is_private === 'true' ? req.body.access_code || null : null;
+    console.log("Attempting to insert community:", { name, description, is_private: isPrivate, access_code: accessCode, created_by });
 
-    // Insert the new community into the database
     const result = await db.one(
       `INSERT INTO communities (name, description, is_private, access_code, created_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
       [name, description, is_private === 'true', access_code, created_by]
     );
 
-    // Redirect to the new community’s page
     console.log("New community created with ID:", result.community_id);
-    res.redirect(`/community/${result.community_id}`);
+    res.redirect(`/community/${result.community_id}`); // Redirect to the newly created community page
+
+
 
   } catch (error) {
     console.error('Error creating community:', error);
-
-    // Render error message if an error occurs
-    res.render('pages/communities', {
+    res.status(500).render('pages/communities', {
       error: 'There was an error creating the community. Please try again.',
       user: req.session.user,
       formData: { name, description, is_private }
     });
   }
+});*/
+
+app.post('/create-community', async (req, res) => {
+  const user = req.session.user;
+  if (!user) {
+    return res.status(401).send("Unauthorized: Please log in to create a community.");
+  }
+
+  try {
+    const { name, description, is_private } = req.body;
+    const created_by = user.username;
+    const isPrivate = is_private === 'true'; // Convert is_private to a boolean
+    const accessCode = isPrivate ? req.body.access_code || null : null;
+
+    const result = await db.one(
+      `INSERT INTO communities (name, description, is_private, access_code, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
+      [name, description, isPrivate, accessCode, created_by]
+    );
+
+    console.log("New community created with ID:", result.community_id);
+    res.status(201).json({ community_id: result.community_id }); // Send JSON response with community ID
+
+  } catch (error) {
+    console.error('Error creating community:', error);
+    res.status(500).json({
+      error: 'There was an error creating the community. Please try again.',
+      formData: { name, description, is_private }
+    });
+  }
 });
+
 
 
 app.post('/community/:id/join', async (req, res) => {

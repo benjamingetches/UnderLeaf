@@ -6,7 +6,7 @@
     <title>Communities</title>
     <link rel="stylesheet" href="/path/to/your/styles.css">
     <style>
-        /* Styles from your provided code */
+        /* Basic styling */
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #f5f5f5;
@@ -24,37 +24,45 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s;
             padding: 10px;
             width: 30%;
         }
-        .card:hover {
-            transform: translateY(-5px);
-        }
-        .card-title {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-        .button-container {
-            text-align: center;
-            margin-top: 10px;
-        }
-        .btn-visit {
-            background-color: #008CBA;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .btn-visit:hover {
-            background-color: #007bb5;
-        }
-        /* Right sidebar for buttons */
-        .sidebar {
-            flex: 1;
+        
+        /* Sidebar and Toggle Styling */
+        .sidebar-container {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 250px;
+            background-color: #fff;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
             padding: 20px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
         }
+        .sidebar-container.show {
+            transform: translateX(0);
+        }
+        .toggle-sidebar-btn {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            z-index: 1100;
+        }
+        .toggle-sidebar-btn.hidden {
+            display: none;
+        }
+        
+        /* Sidebar buttons */
         .sidebar button {
             width: 100%;
             padding: 10px;
@@ -72,39 +80,48 @@
             background-color: #f44336;
             color: white;
         }
-        /* Modal styling */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            padding-top: 100px;
-            left: 0;
-            top: 0;
+
+        /* Public Communities Box */
+        .public-communities-box {
             width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.4);
-        }
-        .modal-content {
-            background-color: #fff;
-            margin: auto;
+            margin: 20px 0;
             padding: 20px;
-            border: 1px solid #888;
-            width: 400px;
+            border: 1px solid #ddd;
             border-radius: 8px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
+        .public-community-card {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .public-community-card:last-child {
+            border-bottom: none;
+        }
+        .public-community-title {
+            font-size: 1.1em;
             font-weight: bold;
+        }
+        .public-community-description {
+            color: #666;
+            margin: 5px 0;
+        }
+        .public-community-join {
+            background-color: #008CBA;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
+        }
+        .public-community-join:hover {
+            background-color: #007bb5;
         }
     </style>
 </head>
 <body>
 
-<h1>Community</h1>
+<h1>Your Communities</h1>
 
 <div class="container">
     <!-- Community List Section -->
@@ -120,126 +137,82 @@
         </div>
         {{/each}}
     </div>
+</div>
 
-    <!-- Sidebar with Create and Join Buttons -->
+<!-- Sidebar Toggle Button -->
+<button id="toggleSidebarBtn" class="toggle-sidebar-btn" onclick="toggleSidebar()">☰</button>
+
+<!-- Sidebar with Create and Join Buttons -->
+<div id="sidebar" class="sidebar-container">
     <div class="sidebar">
         <button class="btn-create" onclick="openCreateModal()">Create Community</button>
         <button class="btn-join" onclick="openJoinModal()">Join Community</button>
     </div>
 </div>
 
-<!-- Create Community Modal -->
-<div id="create-modal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeCreateModal()">&times;</span>
-        <h2>Create a New Community</h2>
-        <form action="/create-community" method="POST">
-            <div class="form-group">
-                <label for="community-name">Community Name</label>
-                <input type="text" id="community-name" name="name" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="community-description">Description</label>
-                <textarea id="community-description" name="description" class="form-control" rows="3" required></textarea>
-            </div>
-            <div class="form-group">
-                <label for="community-privacy">Privacy</label>
-                <select id="community-privacy" name="is_private" class="form-control">
-                    <option value="false">Public</option>
-                    <option value="true">Private</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary mt-3">Create Community</button>
-        </form>
+<!-- Public Communities Box -->
+<div class="public-communities-box">
+    <h2>Public Communities You Can Join</h2>
+    {{#each publicCommunities}}
+    <div class="public-community-card">
+        <p class="public-community-title">{{name}}</p>
+        <p class="public-community-description">{{description}}</p>
+        <button class="public-community-join" onclick="joinPublicCommunity('{{community_id}}')">Join</button>
     </div>
-</div>
-
-<!-- Join Community Modal -->
-<div id="join-modal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeJoinModal()">&times;</span>
-        <h3>Join Community</h3>
-        <p>Enter Access Code:</p>
-        <input type="text" id="access-code" class="form-control" placeholder="Access Code" required>
-        <button class="btn btn-primary mt-3" onclick="submitAccessCode()">Submit</button>
-    </div>
+    {{/each}}
 </div>
 
 <script>
+    // Toggle sidebar visibility
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const toggleButton = document.getElementById("toggleSidebarBtn");
+        
+        sidebar.classList.toggle("show");
+        
+        if (sidebar.classList.contains("show")) {
+            toggleButton.classList.add("hidden");
+            document.addEventListener("click", closeSidebarOnOutsideClick);
+        } else {
+            toggleButton.classList.remove("hidden");
+            document.removeEventListener("click", closeSidebarOnOutsideClick);
+        }
+    }
+
+    function closeSidebarOnOutsideClick(event) {
+        const sidebar = document.getElementById("sidebar");
+        const toggleButton = document.getElementById("toggleSidebarBtn");
+        
+        if (!sidebar.contains(event.target) && !toggleButton.contains(event.target)) {
+            sidebar.classList.remove("show");
+            toggleButton.classList.remove("hidden");
+            document.removeEventListener("click", closeSidebarOnOutsideClick);
+        }
+    }
+
     function visitCommunity(communityId) {
         window.location.href = `/community/${communityId}`;
     }
 
-    // Modal controls for Create Community
+    function joinPublicCommunity(communityId) {
+        // Logic to join the public community (e.g., AJAX call)
+        alert(`Joining community with ID: ${communityId}`);
+    }
+
+    // Modal controls for Create and Join Community (remains the same)
     function openCreateModal() {
         document.getElementById("create-modal").style.display = "block";
     }
-    
     function closeCreateModal() {
         document.getElementById("create-modal").style.display = "none";
     }
-
-    // Modal controls for Join Community
     function openJoinModal() {
         document.getElementById("join-modal").style.display = "block";
     }
-
     function closeJoinModal() {
         document.getElementById("join-modal").style.display = "none";
     }
-
-    async function submitAccessCode() {
-        const code = document.getElementById("access-code").value;
-        if (code) {
-            try {
-                const response = await fetch(`/join-community/${code}`, { method: 'POST' });
-                if (response.ok) {
-                    alert("Joined community successfully!");
-                    location.reload();
-                } else {
-                    alert("Invalid access code.");
-                }
-            } catch (error) {
-                console.error("Error:", error);
-                alert("An error occurred.");
-            }
-        } else {
-            alert("Please enter an access code.");
-        }
-    }
-  document.querySelector('form[action="/create-community"]').addEventListener('submit', async function(event) {
-    event.preventDefault(); // Prevent the default form submission
-    
-    const formData = new FormData(event.target);
-    const data = {
-      name: formData.get('name'),
-      description: formData.get('description'),
-      is_private: formData.get('is_private'),
-    };
-    console.log(data)
-    try {
-      const response = await fetch('/create-community', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        window.location.href = `/community/${responseData.community_id}`; // Redirect to the new community page
-      } else {
-        alert("There was an error creating the community. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("An error occurred while creating the community.");
-    }
-  });
-
 </script>
 
 </body>
 </html>
-

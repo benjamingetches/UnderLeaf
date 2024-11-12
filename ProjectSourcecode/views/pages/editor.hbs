@@ -2,6 +2,8 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
 
 <!-- CodeMirror CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
@@ -944,6 +946,7 @@ function getSelectedHtml() {
 
       // Clean up modal when hidden
       document.getElementById('shareModal').addEventListener('hidden.bs.modal', function () {
+        cleanupModal('shareModal');
         this.remove();
       });
 
@@ -1099,4 +1102,73 @@ function getSelectedHtml() {
       newNoteBtn.toggle();
     });
   });
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize all modals
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(modal => {
+    new bootstrap.Modal(modal);
+  });
+
+  // Update text-to-latex modal trigger
+  document.getElementById('new-from-text').addEventListener('click', function(e) {
+    e.preventDefault();
+    const modal = new bootstrap.Modal(document.getElementById('textToLatexModal'));
+    modal.show();
+  });
+
+  // Update AI edit modal trigger
+  document.getElementById('ai-edit-btn').addEventListener('click', function() {
+    if (isTextSelected) {
+      const modal = new bootstrap.Modal(document.getElementById('contextModal'));
+      modal.show();
+    }
+  });
+});
+
+// Add this function near the top of your script
+function cleanupModal(modalId) {
+  const modal = document.getElementById(modalId);
+  const modalInstance = bootstrap.Modal.getInstance(modal);
+  if (modalInstance) {
+    modalInstance.dispose();
+  }
+  // Remove backdrop if it exists
+  const backdrop = document.querySelector('.modal-backdrop');
+  if (backdrop) {
+    backdrop.remove();
+  }
+  // Remove modal-open class from body
+  document.body.classList.remove('modal-open');
+  document.body.style.overflow = '';
+  document.body.style.paddingRight = '';
+}
+
+// Update the modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Add hidden.bs.modal event listener to all modals
+  const modals = ['contextModal', 'textToLatexModal', 'shareModal'];
+  
+  modals.forEach(modalId => {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.addEventListener('hidden.bs.modal', function() {
+        cleanupModal(modalId);
+      });
+    }
+  });
+
+  // ... rest of your DOMContentLoaded code ...
+});
+
+// Update the share button click handler
+document.getElementById('share-preview').addEventListener('click', async () => {
+  // ... existing share preview code ...
+
+  // Update the modal cleanup
+  document.getElementById('shareModal').addEventListener('hidden.bs.modal', function () {
+    cleanupModal('shareModal');
+    this.remove();
+  });
+});
 </script>

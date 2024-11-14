@@ -70,91 +70,235 @@
     }
 </style>
 
-<div class="container">
-    <h1 class="mt-4 mb-4">Handwritten LaTeX Scanner</h1>
+<div class="container mt-4">
+    <h2>Scan Mathematical Expression</h2>
     
-    <div class="scan-container">
-        <!-- Instructions Card -->
-        <div class="instructions-card">
-            <h3>How to Use the Scanner</h3>
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item">1. Write your LaTeX equations clearly on white paper</li>
-                <li class="list-group-item">2. Ensure good lighting when taking the photo</li>
-                <li class="list-group-item">3. Keep the paper flat and aligned</li>
-                <li class="list-group-item">4. Ensure proper spacing between characters, especially parentheses</li>
-                <li class="list-group-item">5. Ensure photo only contains paper and paper only</li>
-                <li class="list-group-item">6. For characters with super/subscripts, use parentheses to group those terms, see video</li>
-                <li class="list-group-item">7. For exponents, use the caret symbol ^, followed by item in parentheses, see video</li>
-                <li class="list-group-item">8. For fractions, use the nabla symbol, followed by numerator and denominator, see video</li>
-                <li class="list-group-item">9. For square roots, use it's appropriate power</li>
-                <li class="list-group-item">10. Upload the image using the upload button</li>
-                <li class="list-group-item">11. Review the generated LaTeX code</li>
-            </ul>
-
-            <div class="video-container">
-                <p class="text-muted">Tutorial video coming soon...</p>
-            </div>
-        </div>
-
-        <!-- Upload Section -->
-        <div class="upload-section">
-            <h3>Upload Image</h3>
-            <form id="scanForm" enctype="multipart/form-data">
-                <div class="upload-area" id="dropZone">
-                    <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
-                    <p>Drag and drop your image here or click to select</p>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    <div class="row">
+        <div class="col-md-6">
+            <form id="scanForm" class="mb-4">
+                <div class="form-group">
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="imageInput" accept="image/*" multiple>
+                        <label class="custom-file-label" for="imageInput">Choose file(s)</label>
+                    </div>
                 </div>
-                <img id="previewImage" class="preview-image" alt="Preview">
-                <button type="submit" class="btn btn-primary" disabled>Process Image</button>
+                <div id="previewContainer" class="mt-3">
+                    <!-- Previews will be added here -->
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Process Images</button>
             </form>
         </div>
     </div>
 </div>
 
+<!-- Modal for processed content -->
+<div class="modal fade" id="processedModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Note from Scanned Images</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saveLatexForm">
+                    <div class="form-group mb-3">
+                        <label for="noteTitle">Note Title</label>
+                        <input type="text" class="form-control" id="noteTitle" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="category">Category</label>
+                        <input type="text" class="form-control" id="category" value="scanned">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Processed LaTeX Content</label>
+                        <div id="processedContent" class="border p-3 bg-light" style="max-height: 300px; overflow-y: auto; font-family: monospace;">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveNote">Save Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const previewImage = document.getElementById('previewImage');
-    const submitButton = document.querySelector('button[type="submit"]');
+    let processedLatexContent = '';
+    let imageQueue = [];
 
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '#007bff';
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.style.borderColor = '#ccc';
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '#ccc';
-        const file = e.dataTransfer.files[0];
-        handleFile(file);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        handleFile(file);
-    });
-
-    function handleFile(file) {
-        if (file && file.type.startsWith('image/')) {
+    // File input change handler
+    function handleFileSelect(event, previewContainerId) {
+        const files = event.target.files;
+        const container = document.getElementById(previewContainerId);
+        
+        for (let file of files) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                previewImage.src = e.target.result;
-                previewImage.style.display = 'block';
-                submitButton.disabled = false;
+            reader.onload = function(e) {
+                const preview = document.createElement('div');
+                preview.className = 'position-relative d-inline-block m-2';
+                preview.innerHTML = `
+                    <img src="${e.target.result}" class="img-thumbnail" style="max-height: 150px;">
+                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0" 
+                            onclick="this.parentElement.remove()">×</button>
+                `;
+                container.appendChild(preview);
+                imageQueue.push(e.target.result);
             };
             reader.readAsDataURL(file);
         }
     }
+async function compressImage(base64Image) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // More aggressive size reduction
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            
+            let width = img.width;
+            let height = img.height;
+            
+            // Calculate new dimensions
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw image with white background (helps with OCR)
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Compress more aggressively (0.5 quality)
+            const compressedImage = canvas.toDataURL('image/jpeg', 0.5);
+            resolve(compressedImage);
+        };
+        img.src = base64Image;
+    });
+}
+    // Process a single image
+    async function processImageToLatex(base64Image) {
+        try {
+            const compressedImage = await compressImage(base64Image);
+            const response = await fetch('/photo-to-latex', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    photo: compressedImage
+                })
+            });
 
+            if (!response.ok) {
+                throw new Error('Failed to process image');
+            }
+
+            const data = await response.json();
+            return data.latex;
+        } catch (error) {
+            console.error('Error:', error);
+            throw error;
+        }
+    }
+
+    // Process all images in queue
+async function processAllImages() {
+    let allLatex = '';
+    const processedContent = document.getElementById('processedContent');
+    
+    for (let i = 0; i < imageQueue.length; i++) {
+        processedContent.textContent = `Processing image ${i + 1} of ${imageQueue.length}...`;
+        try {
+            const latex = await processImageToLatex(imageQueue[i]);
+            allLatex += latex + '\n\n';
+            processedContent.textContent = allLatex;
+        } catch (error) {
+            processedContent.textContent += `\nError processing image ${i + 1}: ${error.message}\n`;
+            console.error(`Error processing image ${i + 1}:`, error);
+        }
+    }
+    return allLatex.trim();
+}
+
+
+    // Form submission handler
     document.getElementById('scanForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        // Add processing logic here
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+
+        try {
+            processedLatexContent = await processAllImages();
+            document.getElementById('processedContent').textContent = processedLatexContent;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('processedModal'));
+            modal.show();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error processing images: ' + error.message);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Process Images';
+        }
     });
+
+    // Save note handler
+    document.getElementById('saveNote').addEventListener('click', async () => {
+        const saveButton = document.getElementById('saveNote');
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+        try {
+            const response = await fetch('/save-latex', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: document.getElementById('noteTitle').value,
+                    content: processedLatexContent,
+                    username: '{{user.username}}',
+                    category: document.getElementById('category').value
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Redirect to edit the newly created note
+                window.location.href = `/edit-note/${data.noteId}`;
+            } else {
+                throw new Error(data.error || 'Failed to save note');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error saving note: ' + error.message);
+        } finally {
+            saveButton.disabled = false;
+            saveButton.innerHTML = 'Save Note';
+        }
+    });
+
+    // Event listeners for file inputs
+    document.getElementById('imageInput').addEventListener('change', (e) => handleFileSelect(e, 'previewContainer'));
+    document.getElementById('additionalImages').addEventListener('change', (e) => handleFileSelect(e, 'modalImagePreviews'));
 </script>

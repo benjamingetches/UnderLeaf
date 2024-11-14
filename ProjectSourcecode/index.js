@@ -409,60 +409,125 @@ app.get('/editor', async (req, res) => {
 });
 
 app.get('/edit-note/:id', async (req, res) => {
-    const noteId = req.params.id;
-    const user = req.session.user;
+  const noteId = req.params.id;
+  const user = req.session.user;
+  const viewOnly = req.query.viewOnly === 'true'; // Check if this is a view-only request
 
-    try {
-        const note = await db.one(`
-            SELECT n.*, 
-                   CASE 
-                     WHEN n.username = $1 THEN true
-                     ELSE np.can_edit
-                   END as can_edit
-            FROM notes n
-            LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
-            WHERE n.id = $2 
-            AND (n.username = $1 OR np.username = $1)`,
-            [user.username, noteId]
-        );
-        console.log('Note found:', note); // Add this for debugging
-        res.render('pages/editor', { user, note });
-    } catch (error) {
-        console.error('Error fetching note:', error);
-        res.status(500).send('Error fetching note');
-    }
+  try {
+      const note = await db.one(`
+          SELECT n.*, 
+                 CASE 
+                   WHEN n.username = $1 THEN true
+                   ELSE np.can_edit
+                 END as can_edit
+          FROM notes n
+          LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+          WHERE n.id = $2 
+          AND (n.username = $1 OR np.username = $1 AND np.can_read = true)`,
+          [user.username, noteId]
+      );
+
+      // Override can_edit if this is a view-only request
+      if (viewOnly) {
+          note.can_edit = false;
+      }
+
+      res.render('pages/editor', { user, note });
+  } catch (error) {
+      console.error('Error fetching note:', error);
+      res.status(500).send('Error fetching note');
+  }
 });
 
+
+
+// app.get('/notes', async (req, res) => {
+//     const user = req.session.user;
+//     try {
+//         const notes = await db.any(`
+//             SELECT DISTINCT n.id, n.title, n.username, 
+//                    CASE 
+//                      WHEN n.username = $1 THEN true
+//                      ELSE np.can_edit
+//                    END as can_edit,
+//                    CASE 
+//                      WHEN n.username = $1 THEN 'Owner'
+//                      ELSE 'Shared'
+//                    END as access_type,
+//                    CASE 
+//                      WHEN n.username = $1 THEN true
+//                      ELSE np.can_read
+//                    END as can_read
+//             FROM notes n
+//             LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+//             WHERE n.username = $1 
+//             OR (np.username = $1 AND np.can_read = true)
+//             ORDER BY n.title`, 
+//             [user.username]
+//         );
+//         console.log('Notes found:', notes); // Add this for debugging
+//         res.render('pages/notes', { user, notes });
+//     } catch (error) {
+//         console.error('Error fetching notes:', error);
+//         res.status(500).send('Error fetching notes');
+//     }
+// });
+
 app.get('/notes', async (req, res) => {
-    const user = req.session.user;
-    try {
-        const notes = await db.any(`
-            SELECT DISTINCT n.id, n.title, n.username, 
-                   CASE 
-                     WHEN n.username = $1 THEN true
-                     ELSE np.can_edit
-                   END as can_edit,
-                   CASE 
-                     WHEN n.username = $1 THEN 'Owner'
-                     ELSE 'Shared'
-                   END as access_type,
-                   CASE 
-                     WHEN n.username = $1 THEN true
-                     ELSE np.can_read
-                   END as can_read
-            FROM notes n
-            LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
-            WHERE n.username = $1 
-            OR (np.username = $1 AND np.can_read = true)
-            ORDER BY n.title`, 
-            [user.username]
-        );
-        console.log('Notes found:', notes); // Add this for debugging
-        res.render('pages/notes', { user, notes });
-    } catch (error) {
-        console.error('Error fetching notes:', error);
-        res.status(500).send('Error fetching notes');
-    }
+  const user = req.session.user;
+  try {
+      // Fetch user's own notes
+      const userNotes = await db.any(`
+          SELECT DISTINCT n.id, n.title, n.username, 
+                 true as can_edit,
+                 'Owner' as access_type
+          FROM notes n
+          WHERE n.username = $1
+          ORDER BY n.title`, 
+          [user.username]
+      );
+
+      // Fetch notes shared with the user (Friends' Notes)
+      const friendsNotes = await db.any(`
+          SELECT DISTINCT n.id, n.title, n.username, 
+                 np.can_edit, 
+                 'Shared' as access_type,
+                 np.can_read
+          FROM notes n
+          JOIN note_permissions np ON n.id = np.note_id
+          WHERE np.username = $1 AND np.can_read = true
+          ORDER BY n.title`, 
+          [user.username]
+      );
+
+      // Get friend count and pending request count for navbar
+      const friendCount = await db.one(`
+          SELECT COUNT(*) as count
+          FROM friends
+          WHERE (requester = $1 OR addressee = $1)
+          AND status = 'accepted'`,
+          [user.username]
+      );
+
+      const pendingCount = await db.one(`
+          SELECT COUNT(*) as count
+          FROM friends
+          WHERE addressee = $1 AND status = 'pending'`,
+          [user.username]
+      );
+
+      // Render the notes page, passing both userNotes and friendsNotes separately
+      res.render('pages/notes', { 
+          user, 
+          notes: userNotes,
+          friendsNotes: friendsNotes,
+          friendCount: friendCount.count,
+          pendingCount: pendingCount.count
+      });
+  } catch (error) {
+      console.error('Error fetching notes:', error);
+      res.status(500).send('Error fetching notes');
+  }
 });
 
 

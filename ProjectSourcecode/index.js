@@ -1447,6 +1447,64 @@ app.get('/get-note/:id', async (req, res) => {
 });
 
 
+
+
+app.post('/photo-to-latex', async (req, res) => {
+  const { photo } = req.body;
+  
+  try {
+    // Convert base64 image data to proper format
+    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
+    
+    const prompt = `Please convert the uploaded photo to LaTeX format, following these strict requirements:
+
+1. Return ONLY the LaTeX code, with no additional explanations
+2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
+3. Use this exact document structure unless absolutely necessary to do otherwise:
+
+\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+
+\\begin{document}
+[CONVERTED CONTENT GOES HERE]
+\\end{document}
+
+4. Preserve all mathematical notation and formatting from the original image
+5. Do not add any comments or explanations - only output valid LaTeX code`
+
+
+    const response = await openai.createChatCompletion({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text", 
+              text: prompt
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000
+    });
+
+    const latexCode = response.data.choices[0].message.content;
+    res.json({ latex: latexCode });
+
+  } catch (error) {
+    console.error('Error processing image:', error);
+    res.status(500).json({ error: 'Failed to process image' });
+  }
+});
+
 // CHRIS
 app.post('/rewrite-text', async (req, res) => {
   const { text, instructions } = req.body;

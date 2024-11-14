@@ -22,21 +22,26 @@
             <a href="/register">Sign Up.</a>
           </p>
           <p class="signup">
-            <a href="/forgot-password" >Forgot Password?</a>
+            <a href="/forgot-password">Forgot Password?</a>
           </p>
         </form>
       </div>
     </div>
     <div class="user signupBx">
       <div class="formBx">
-        <form action="/register" method="POST">
+        <form action="/register" method="POST" onsubmit="handleSubmit(event)">
           <h2>Create an account</h2>
           {{#if registerError}}
             <div class="alert alert-danger">{{registerError}}</div>
           {{/if}}
           <input type="text" name="username" placeholder="Username" required />
           <input type="email" name="email" placeholder="Email Address" required />
-          <input type="password" name="password" placeholder="Password" required />
+          <div class="password-container">
+            <input type="password" name="password" placeholder="Password" id="password" required />
+            <button type="button" id="togglePassword">👁️</button>
+          </div>
+          <p class="password-hint">Password must be at least 8 characters, include an uppercase letter, and a number.</p>
+          <div id="password-strength-bar"></div>
           <input type="submit" value="Sign Up" />
           <p class="signup">
             Already have an account?
@@ -51,11 +56,95 @@
   </div>
 </section>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('password');
+  const passwordHint = document.querySelector('.password-hint');
+  const passwordStrengthBar = document.getElementById('password-strength-bar');
+  const togglePassword = document.getElementById('togglePassword');
+  
+  const regex = /^(?=.*[A-Z])(?=.*\d)(?=.{8,})/;
+
+  passwordHint.style.display = 'none';
+
+  passwordInput.addEventListener('focus', function() {
+    passwordHint.style.display = 'block';
+  });
+
+  passwordInput.addEventListener('blur', function() {
+    passwordHint.style.display = 'none';
+  });
+
+  passwordInput.addEventListener('input', function() {
+    let score = 0;
+
+    if (passwordInput.value.length >= 8) score += 1;
+    if (/[A-Z]/.test(passwordInput.value)) score += 1;
+    if (/\d/.test(passwordInput.value)) score += 1;
+
+    const width = `${(score / 3) * 100}%`;
+    let color = 'red';
+
+    if (score === 1) color = 'orange';
+    if (score === 2) color = 'yellow';
+    if (score === 3) color = 'green';
+
+    passwordStrengthBar.style.width = width;
+    passwordStrengthBar.style.backgroundColor = color;
+  });
+
+  togglePassword.addEventListener('click', function() {
+    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+    passwordInput.setAttribute('type', type);
+    togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+  });
+});
+</script>
+
 <style>
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+
+.password-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-container input[type="password"] {
+  flex: 1;
+}
+
+.password-container button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2em;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.password-hint {
+  font-size: 12px;
+  color: #555;
+  margin-top: -10px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+#password-strength-bar {
+  width: 100%;
+  height: 5px;
+  background-color: red;
+  border-radius: 5px;
+  transition: width 0.3s, background-color 0.3s;
+  margin-top: 5px;
 }
 
 section {

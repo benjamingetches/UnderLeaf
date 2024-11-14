@@ -7,9 +7,57 @@
 
     .scan-container {
         display: flex;
+        flex-direction: column;
+        max-width: 1200px;
+        margin: 0 auto;
         padding: 20px;
         gap: 20px;
-        min-height: calc(100vh - 150px);
+    }
+
+    /* Updated card styles to match editor */
+    .scan-card {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    /* Updated preview container */
+    #previewContainer {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    .preview-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .preview-item img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .preview-item .remove-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .scan-section, .results-section {
@@ -70,24 +118,21 @@
     }
 </style>
 
-<div class="container mt-4">
-    <h2>Scan Mathematical Expression</h2>
-    
-    <div class="row">
-        <div class="col-md-6">
-            <form id="scanForm" class="mb-4">
-                <div class="form-group">
-                    <div class="custom-file">
-                        <input type="file" class="custom-file-input" id="imageInput" accept="image/*" multiple>
-                        <label class="custom-file-label" for="imageInput">Choose file(s)</label>
-                    </div>
+<div class="scan-container">
+    <div class="scan-card">
+        <h2 class="mb-4">Scan Mathematical Expression</h2>
+        
+        <form id="scanForm">
+            <div class="form-group mb-4">
+                <div class="custom-file">
+                    <input type="file" class="form-control" id="imageInput" accept="image/*" multiple>
                 </div>
-                <div id="previewContainer" class="mt-3">
-                    <!-- Previews will be added here -->
-                </div>
-                <button type="submit" class="btn btn-primary mt-3">Process Images</button>
-            </form>
-        </div>
+            </div>
+            <div id="previewContainer">
+                <!-- Previews will be added here -->
+            </div>
+            <button type="submit" class="btn btn-primary mt-4 px-4">Process Images</button>
+        </form>
     </div>
 </div>
 
@@ -130,26 +175,26 @@
     let imageQueue = [];
 
     // File input change handler
-    function handleFileSelect(event, previewContainerId) {
-        const files = event.target.files;
-        const container = document.getElementById(previewContainerId);
-        
-        for (let file of files) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const preview = document.createElement('div');
-                preview.className = 'position-relative d-inline-block m-2';
-                preview.innerHTML = `
-                    <img src="${e.target.result}" class="img-thumbnail" style="max-height: 150px;">
-                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0" 
-                            onclick="this.parentElement.remove()">×</button>
-                `;
-                container.appendChild(preview);
-                imageQueue.push(e.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
+function handleFileSelect(event, previewContainerId) {
+    const files = event.target.files;
+    const container = document.getElementById(previewContainerId);
+    
+    for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.createElement('div');
+            preview.className = 'preview-item';
+            preview.innerHTML = `
+                <img src="${e.target.result}" alt="Preview">
+                <button type="button" class="remove-btn" 
+                        onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(preview);
+            imageQueue.push(e.target.result);
+        };
+        reader.readAsDataURL(file);
     }
+}
 async function compressImage(base64Image) {
     return new Promise((resolve) => {
         const img = new Image();

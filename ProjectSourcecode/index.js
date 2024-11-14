@@ -112,7 +112,8 @@ app.engine('hbs', hbs.engine);
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.json()); // specify the usage of JSON for parsing request body.
-
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 // initialize session variables
 app.use(
   session({
@@ -1447,6 +1448,153 @@ app.get('/get-note/:id', async (req, res) => {
 });
 
 
+app.post('/photo-to-latex', async (req, res) => {
+  const { photo } = req.body;
+  
+  try {
+    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
+    
+    const prompt = `Please convert the uploaded photo to LaTeX format, following these strict requirements:
+
+1. Return ONLY the LaTeX code, with no additional explanations
+2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
+3. Use this exact document structure unless absolutely necessary to do otherwise:
+
+\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+
+\\begin{document}
+[CONVERTED CONTENT GOES HERE]
+\\end{document}
+
+4. Preserve all mathematical notation and formatting from the original image
+5. Do not add any comments or explanations - only output valid LaTeX code
+6. Do not include markdown code fences (\`\`\`) or language identifiers in your response`;
+
+    const response = await openai.createChatCompletion({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4096,
+      temperature: 0.3
+    });
+
+    if (!response.data?.choices?.[0]?.message?.content) {
+      throw new Error('No content in OpenAI response');
+    }
+
+    // Clean up the response
+    let latexCode = response.data.choices[0].message.content.trim();
+    
+    // Remove markdown code fences and language identifier if present
+    latexCode = latexCode.replace(/^```latex\s*/, '');
+    latexCode = latexCode.replace(/^```\s*/, '');
+    latexCode = latexCode.replace(/\s*```$/, '');
+
+    console.log('Cleaned OpenAI Response:', latexCode);
+
+    return res.json({ 
+      success: true,
+      latex: latexCode 
+    });
+
+  } catch (error) {
+    console.error('Error processing image:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to process image',
+      details: error.message,
+      ...(error.response?.data && { apiError: error.response.data })
+    });
+  }
+});
+
+/*app.post('/photo-to-latex', async (req, res) => {
+  const { photo } = req.body;
+  
+  try {
+    // Convert base64 image data to proper format
+    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
+    
+    const prompt = `Please convert the uploaded photo to LaTeX format, following these strict requirements:
+
+1. Return ONLY the LaTeX code, with no additional explanations
+2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
+3. Use this exact document structure unless absolutely necessary to do otherwise:
+
+\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+
+\\begin{document}
+[CONVERTED CONTENT GOES HERE]
+\\end{document}
+
+4. Preserve all mathematical notation and formatting from the original image
+5. Do not add any comments or explanations - only output valid LaTeX code, beginning with \\documentclass and ending with \\end{document}
+6. UNDER NO CIRCUMSTANCES should your reponse begin with anything other than \\documentclass and \\begin{document}`
+
+
+const response = await openai.createChatCompletion({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64Image}`
+          }
+        }
+      ]
+    }
+  ],
+  max_tokens: 4096, // Increased token limit
+  temperature: 0.3  // Lower temperature for more consistent output
+});
+
+if (!response.data?.choices?.[0]?.message?.content) {
+  throw new Error('No content in OpenAI response');
+}
+
+const latexCode = response.data.choices[0].message.content.trim();
+
+// Log the response for debugging
+console.log('OpenAI Response:', latexCode);
+
+// Send back the LaTeX code
+return res.json({ 
+  success: true,
+  latex: latexCode 
+});
+
+} catch (error) {
+console.error('Error processing image:', error);
+
+// Send a more detailed error response
+return res.status(500).json({ 
+  success: false,
+  error: 'Failed to process image',
+  details: error.message,
+  ...(error.response?.data && { apiError: error.response.data })
+});
+}
+});*/
 // CHRIS
 app.post('/rewrite-text', async (req, res) => {
   const { text, instructions } = req.body;

@@ -25,6 +25,15 @@ created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS template_permissions (
+    template_id INT REFERENCES templates(id) ON DELETE CASCADE,
+    username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    can_edit BOOLEAN DEFAULT FALSE,
+    can_read BOOLEAN DEFAULT TRUE,
+    shared_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (template_id, username)
+);
+
 -- TODO: communities table
 CREATE TABLE IF NOT EXISTS communities (
     community_id SERIAL PRIMARY KEY, -- unique id of identification for the communtiy

@@ -29,7 +29,7 @@
     </div>
     <div class="user signupBx">
       <div class="formBx">
-        <form action="/register" method="POST" onsubmit="handleSubmit(event)">
+        <form action="/register" method="POST" onsubmit="validateForm(event)">
           <h2>Create an account</h2>
           {{#if registerError}}
             <div class="alert alert-danger">{{registerError}}</div>
@@ -99,7 +99,18 @@ document.addEventListener('DOMContentLoaded', function() {
     togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
   });
 });
+
+function validateForm(event) {
+  const passwordInput = document.getElementById('password');
+  const regex = /^(?=.*[A-Z])(?=.*\d)(?=.{8,})/;
+
+  if (!regex.test(passwordInput.value)) {
+    event.preventDefault();
+    alert("Your password does not meet the requirements.");
+  }
+}
 </script>
+
 
 <style>
 * {

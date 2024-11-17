@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Communities</title>
-    <link rel="stylesheet" href="/path/to/your/styles.css">
     <style>
         /* Basic styling */
         body {
@@ -72,6 +71,16 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        .no-communities-message {
+        text-align: center;
+        padding: 40px;
+        width: 100%;
+        color: #666;
+        }
+        .no-communities-message p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
         .btn-create {
             background-color: #4CAF50;
             color: white;
@@ -121,10 +130,11 @@
 </head>
 <body>
 
-<h1>Your Communities</h1>
+<h1>Your Communities</h2>
 
 <div class="container">
     <!-- Community List Section -->
+    {{#if data.length}}
     <div class="community-list">
         {{#each data}}
         <div class="card">
@@ -137,6 +147,12 @@
         </div>
         {{/each}}
     </div>
+    {{else}}
+    <div class="no-communities-message">
+        <p>You haven't joined any communities yet.</p>
+        <p>Join a public community below or create your own!</p>
+    </div>
+    {{/if}}
 </div>
 
 <!-- Sidebar Toggle Button -->
@@ -194,10 +210,26 @@
         window.location.href = `/community/${communityId}`;
     }
 
-    function joinPublicCommunity(communityId) {
-        // Logic to join the public community (e.g., AJAX call)
-        alert(`Joining community with ID: ${communityId}`);
-    }
+function joinPublicCommunity(communityId) {
+    fetch(`/join-community/${communityId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Reload the page to show updated communities
+            window.location.reload();
+        } else {
+            throw new Error('Failed to join community');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to join community. Please try again.');
+    });
+}
 
     // Modal controls for Create and Join Community (remains the same)
     function openCreateModal() {

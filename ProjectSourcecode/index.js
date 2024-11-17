@@ -474,42 +474,43 @@ app.get('/communities', async (req, res) => {
     const { is_private, created_by } = req.query;
     const user = req.session.user;
 
-    // Base query to select communities and check membership
-    let query = `
-      SELECT c.*, 
-             CASE WHEN cm.username IS NOT NULL THEN true ELSE false END as is_member
+    // Query for user's communities
+    let userCommunitiesQuery = `
+      SELECT c.* 
       FROM communities c
-      LEFT JOIN community_memberships cm ON c.community_id = cm.community_id 
-        AND cm.username = $1`;
+      INNER JOIN community_memberships cm 
+        ON c.community_id = cm.community_id 
+      WHERE cm.username = $1`;
     
-    const queryParams = [user.username];
-    let paramCount = 1;
+    // Query for public communities the user hasn't joined
+    let publicCommunitiesQuery = `
+      SELECT c.*
+      FROM communities c
+      WHERE c.is_private = false
+      AND NOT EXISTS (
+        SELECT 1 
+        FROM community_memberships cm 
+        WHERE cm.community_id = c.community_id 
+        AND cm.username = $1
+      )`;
 
-    if (is_private !== undefined) {
-      paramCount++;
-      queryParams.push(is_private === 'true');
-      query += ` WHERE c.is_private = $${paramCount}`;
-    }
+    // Execute both queries
+    const [userCommunities, publicCommunities] = await Promise.all([
+      db.any(userCommunitiesQuery, [user.username]),
+      db.any(publicCommunitiesQuery, [user.username])
+    ]);
 
-    if (created_by) {
-      paramCount++;
-      queryParams.push(created_by);
-      query += queryParams.length === 2 ? ' WHERE' : ' AND';
-      query += ` c.created_by = $${paramCount}`;
-    }
-
-    // Fetch communities from the database
-    const communities = await db.any(query, queryParams);
-
-    // Render the template with user data included
+    // Render the template with both sets of data
     res.render('pages/communities', {
-      data: communities,
+      data: userCommunities,
+      publicCommunities: publicCommunities,
       user: user
     });
   } catch (error) {
     console.error('Error fetching communities:', error);
     res.render('pages/communities', {
       data: [],
+      publicCommunities: [],
       user: req.session.user,
       message: 'Server error while fetching communities'
     });

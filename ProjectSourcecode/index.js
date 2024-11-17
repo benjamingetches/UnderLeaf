@@ -1512,6 +1512,165 @@ app.get('/get-note/:id', async (req, res) => {
     }
 });
 
+app.get('/templates', async (req, res) => {
+  try {
+      const user = req.session.user;
+
+      // Fetch user's own templates
+      const userTemplates = await db.any(`
+          SELECT id, title, content, username 
+          FROM templates
+          WHERE username = $1
+          ORDER BY title`, 
+          [user.username]
+      );
+
+      // Fetch templates shared with the user
+      const sharedTemplates = await db.any(`
+          SELECT t.id, t.title, t.content, t.username, tp.can_edit 
+          FROM templates t
+          JOIN template_permissions tp ON t.id = tp.template_id
+          WHERE tp.username = $1 AND tp.can_read = true
+          ORDER BY t.title`, 
+          [user.username]
+      );
+
+      res.render('pages/template', { 
+          user, 
+          userTemplates, 
+          sharedTemplates 
+      });
+  } catch (error) {
+      console.error('Error fetching templates:', error);
+      res.status(500).send('Error fetching templates');
+  }
+});
+
+app.post('/create-template', async (req, res) => {
+  const { title, content } = req.body;
+  const user = req.session.user;
+
+  try {
+      const result = await db.one(`
+          INSERT INTO templates (title, content, username) 
+          VALUES ($1, $2, $3) 
+          RETURNING id`, 
+          [title, content, user.username]
+      );
+
+      res.status(201).json({ 
+          success: true, 
+          templateId: result.id, 
+          message: 'Template created successfully' 
+      });
+  } catch (error) {
+      console.error('Error creating template:', error);
+      res.status(500).json({ success: false, error: 'Failed to create template' });
+  }
+});
+
+app.post('/edit-template/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+  const user = req.session.user;
+
+  try {
+      // Verify user has permission to edit the template
+      const template = await db.one(`
+          SELECT t.*, 
+                 CASE 
+                   WHEN t.username = $1 THEN true
+                   ELSE tp.can_edit
+                 END as can_edit
+          FROM templates t
+          LEFT JOIN template_permissions tp ON t.id = tp.template_id
+          WHERE t.id = $2`,
+          [user.username, id]
+      );
+
+      if (!template.can_edit) {
+          return res.status(403).json({ success: false, error: 'No permission to edit this template' });
+      }
+
+      // Update the template
+      await db.none(
+          'UPDATE templates SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+          [title, content, id]
+      );
+
+      res.json({ success: true, message: 'Template updated successfully' });
+  } catch (error) {
+      console.error('Error editing template:', error);
+      res.status(500).json({ success: false, error: 'Failed to edit template' });
+  }
+});
+
+app.delete('/delete-template/:id', async (req, res) => {
+  const { id } = req.params;
+  const user = req.session.user;
+
+  try {
+      // Verify user owns the template
+      const template = await db.oneOrNone('SELECT * FROM templates WHERE id = $1 AND username = $2', [id, user.username]);
+
+      if (!template) {
+          return res.status(403).json({ success: false, error: 'No permission to delete this template' });
+      }
+
+      // Delete template permissions first due to foreign key constraint
+      await db.none('DELETE FROM template_permissions WHERE template_id = $1', [id]);
+
+      // Delete the template
+      await db.none('DELETE FROM templates WHERE id = $1', [id]);
+
+      res.json({ success: true, message: 'Template deleted successfully' });
+  } catch (error) {
+      console.error('Error deleting template:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete template' });
+  }
+});
+
+app.post('/share-template', async (req, res) => {
+  const { templateId, shareWith, canEdit } = req.body;
+  const user = req.session.user;
+
+  try {
+      // Verify user owns the template
+      const template = await db.one('SELECT * FROM templates WHERE id = $1 AND username = $2', [templateId, user.username]);
+
+      // Verify friendship exists
+      const friendship = await db.oneOrNone(`
+          SELECT * 
+          FROM friends 
+          WHERE ((requester = $1 AND addressee = $2) 
+              OR (requester = $2 AND addressee = $1)) 
+          AND status = 'accepted'`,
+          [user.username, shareWith]
+      );
+
+      if (!friendship) {
+          return res.status(403).json({ success: false, error: 'Can only share templates with friends' });
+      }
+
+      // Check if sharing already exists
+      const existingShare = await db.oneOrNone('SELECT * FROM template_permissions WHERE template_id = $1 AND username = $2', [templateId, shareWith]);
+
+      if (existingShare) {
+          // Update existing permissions
+          await db.none('UPDATE template_permissions SET can_edit = $1, updated_at = CURRENT_TIMESTAMP WHERE template_id = $2 AND username = $3', [canEdit, templateId, shareWith]);
+      } else {
+          // Create new permissions
+          await db.none('INSERT INTO template_permissions (template_id, username, can_edit, can_read) VALUES ($1, $2, $3, true)', [templateId, shareWith, canEdit]);
+      }
+
+      res.json({ success: true, message: 'Template shared successfully' });
+  } catch (error) {
+      console.error('Error sharing template:', error);
+      res.status(500).json({ success: false, error: 'Failed to share template' });
+  }
+});
+
+
 
 app.post('/photo-to-latex', async (req, res) => {
   const { photo } = req.body;

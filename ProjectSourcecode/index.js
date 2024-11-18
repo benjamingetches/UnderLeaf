@@ -552,88 +552,112 @@ app.post('/leave-community/:id', async (req, res) => {
   }
 });
 
-/*app.post('/create-community', async (req, res) => {
-  const user = req.session.user;
-  if (!user) {
-    return res.status(401).send("Unauthorized: Please log in to create a community.");
-  }
-  console.log(req.body)
-  try {
-    const { name, description, is_private } = req.body;
-    const created_by = user.username;
-    const access_code = is_private === 'true' ? req.body.access_code || null : null;
-    console.log("Attempting to insert community:", { name, description, is_private: isPrivate, access_code: accessCode, created_by });
 
-    const result = await db.one(
-      `INSERT INTO communities (name, description, is_private, access_code, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
-      [name, description, is_private === 'true', access_code, created_by]
-    );
-
-    console.log("New community created with ID:", result.community_id);
-    res.redirect(`/community/${result.community_id}`); // Redirect to the newly created community page
-
-
-
-  } catch (error) {
-    console.error('Error creating community:', error);
-    res.status(500).render('pages/communities', {
-      error: 'There was an error creating the community. Please try again.',
-      user: req.session.user,
-      formData: { name, description, is_private }
-    });
-  }
-});*/
 
 app.post('/create-community', async (req, res) => {
-  const user = req.session.user;
-  if (!user) {
-    return res.status(401).send("Unauthorized: Please log in to create a community.");
+  if (!req.session.user) {
+      return res.status(401).json({ success: false, error: "Unauthorized: Please log in to create a community." });
   }
 
+  const { name, description, isPrivate } = req.body;
+  const createdBy = req.session.user.username;
+  
   try {
-    const { name, description, is_private } = req.body;
-    const created_by = user.username;
-    const isPrivate = is_private === 'true'; // Convert is_private to a boolean
-    const accessCode = isPrivate ? req.body.access_code || null : null;
+      // Log the incoming data
+      console.log('Creating community with:', { name, description, isPrivate, createdBy });
+      
+      const accessCode = isPrivate ? crypto.randomBytes(3).toString('hex') : null;
+      
+      const result = await db.one(
+          `INSERT INTO communities (name, description, is_private, access_code, created_by) 
+           VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
+          [name, description, isPrivate, accessCode, createdBy]
+      );
 
-    const result = await db.one(
-      `INSERT INTO communities (name, description, is_private, access_code, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
-      [name, description, isPrivate, accessCode, created_by]
-    );
+      console.log('Community created successfully:', result);
 
-    console.log("New community created with ID:", result.community_id);
-    res.status(201).json({ community_id: result.community_id }); // Send JSON response with community ID
+      // Add creator as a member
+      await db.none(
+          `INSERT INTO community_memberships (community_id, username) 
+           VALUES ($1, $2)`,
+          [result.community_id, createdBy]
+      );
 
+      res.json({ 
+          success: true, 
+          message: 'Community created successfully',
+          accessCode: accessCode
+      });
   } catch (error) {
-    console.error('Error creating community:', error);
-    res.status(500).json({
-      error: 'There was an error creating the community. Please try again.',
-      formData: { name, description, is_private }
-    });
+      console.error('Detailed error creating community:', error);
+      res.status(500).json({ 
+          success: false, 
+          error: 'Failed to create community',
+          details: error.message 
+      });
   }
 });
 
 
 
-app.post('/community/:id/join', async (req, res) => {
+app.post('/join-private-community', async (req, res) => {
   if (!req.session.user) {
-    return res.status(401).send("Unauthorized: Please log in to join a community.");
+      return res.status(401).json({ success: false, error: "Please log in to join a community." });
   }
+
+  const { accessCode } = req.body;
+  const username = req.session.user.username;
+  
   try {
-    const communityId = req.params.id;
-    const username = req.session.user.username;
+      console.log('Attempting to join community with access code:', accessCode);
 
-    await db.none(
-      `INSERT INTO community_memberships (community_id, username) VALUES ($1, $2)`,
-      [communityId, username]
-    );
+      // First, find the community with this access code
+      const community = await db.oneOrNone(
+          'SELECT * FROM communities WHERE access_code = $1',
+          [accessCode]
+      );
 
-    res.redirect(`/community/${communityId}`);
+      console.log('Found community:', community);
+
+      if (!community) {
+          return res.status(404).json({ 
+              success: false, 
+              error: 'Invalid access code or community not found' 
+          });
+      }
+
+      // Check if user is already a member
+      const existingMembership = await db.oneOrNone(
+          'SELECT * FROM community_memberships WHERE community_id = $1 AND username = $2',
+          [community.community_id, username]
+      );
+
+      if (existingMembership) {
+          return res.status(400).json({ 
+              success: false, 
+              error: 'You are already a member of this community' 
+          });
+      }
+
+      // Add user as a member
+      await db.none(
+          'INSERT INTO community_memberships (community_id, username) VALUES ($1, $2)',
+          [community.community_id, username]
+      );
+
+      res.json({ 
+          success: true, 
+          message: 'Successfully joined community',
+          communityName: community.name
+      });
+
   } catch (error) {
-    console.error('Error joining community:', error);
-    res.redirect(`/community/${communityId}`);
+      console.error('Error joining community:', error);
+      res.status(500).json({ 
+          success: false, 
+          error: 'Failed to join community',
+          details: error.message 
+      });
   }
 });
 

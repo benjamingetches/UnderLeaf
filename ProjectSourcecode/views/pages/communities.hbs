@@ -1,9 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communities</title>
     <style>
         /* Basic styling */
         body {
@@ -126,12 +120,117 @@
         .public-community-join:hover {
             background-color: #007bb5;
         }
+        /* Modal Styling */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal-content input,
+        .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .modal-content textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .privacy-toggle {
+            margin-bottom: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-submit {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .btn-cancel {
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .community-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .create-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .create-btn:hover {
+            background-color: #45a049;
+        }
+
+        .join-btn {
+            background-color: #008CBA;
+            color: white;
+        }
+
+        .join-btn:hover {
+            background-color: #007399;
+        }
     </style>
-</head>
-<body>
 
-<h1>Your Communities</h2>
-
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 20px;">
+    <h1>Your Communities</h1>
+    <div class="community-controls">
+        <button onclick="openCreateModal()" class="control-btn create-btn">Create Community</button>
+        <button onclick="openJoinModal()" class="control-btn join-btn">Join Private Community</button>
+    </div>
+</div>
 <div class="container">
     <!-- Community List Section -->
     {{#if data.length}}
@@ -156,15 +255,7 @@
 </div>
 
 <!-- Sidebar Toggle Button -->
-<button id="toggleSidebarBtn" class="toggle-sidebar-btn" onclick="toggleSidebar()">☰</button>
 
-<!-- Sidebar with Create and Join Buttons -->
-<div id="sidebar" class="sidebar-container">
-    <div class="sidebar">
-        <button class="btn-create" onclick="openCreateModal()">Create Community</button>
-        <button class="btn-join" onclick="openJoinModal()">Join Community</button>
-    </div>
-</div>
 
 <!-- Public Communities Box -->
 <div class="public-communities-box">
@@ -176,6 +267,38 @@
         <button class="public-community-join" onclick="joinPublicCommunity('{{community_id}}')">Join</button>
     </div>
     {{/each}}
+</div>
+<div id="create-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Create New Community</h2>
+        <form id="createCommunityForm">
+            <input type="text" id="communityName" placeholder="Community Name" required>
+            <textarea id="communityDescription" placeholder="Community Description" required></textarea>
+            <div class="privacy-toggle">
+                <label>
+                    <input type="checkbox" id="isPrivate"> Make Private
+                </label>
+            </div>
+            <div class="button-group">
+                <button type="submit" class="btn-submit">Create</button>
+                <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Join Community Modal -->
+<div id="join-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Join Private Community</h2>
+        <form id="joinCommunityForm">
+            <input type="text" id="accessCode" placeholder="Enter Community Code" required>
+            <div class="button-group">
+                <button type="submit" class="btn-submit">Join</button>
+                <button type="button" class="btn-cancel" onclick="closeJoinModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -210,39 +333,123 @@
         window.location.href = `/community/${communityId}`;
     }
 
-function joinPublicCommunity(communityId) {
-    fetch(`/join-community/${communityId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (response.ok) {
-            // Reload the page to show updated communities
-            window.location.reload();
-        } else {
-            throw new Error('Failed to join community');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to join community. Please try again.');
-    });
-}
+    function joinPublicCommunity(communityId) {
+        fetch(`/join-community/${communityId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Reload the page to show updated communities
+                window.location.reload();
+            } else {
+                throw new Error('Failed to join community');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to join community. Please try again.');
+        });
+    }
 
     // Modal controls for Create and Join Community (remains the same)
+    // Create Community Form Handler
+    document.getElementById('createCommunityForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = document.getElementById('communityName').value;
+        const description = document.getElementById('communityDescription').value;
+        const isPrivate = document.getElementById('isPrivate').checked;
+
+        console.log('Submitting community data:', { name, description, isPrivate });
+
+        fetch('/create-community', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, description, isPrivate })
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Failed to create community');
+            }
+            return data;
+        })
+        .then(data => {
+            console.log('Success:', data);
+            if (data.accessCode) {
+                alert(`Community created successfully! Access code: ${data.accessCode}`);
+            } else {
+                alert('Community created successfully!');
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message || 'Failed to create community');
+        });
+    });
+
+    // Join Community Form Handler
+    document.getElementById('joinCommunityForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const accessCode = document.getElementById('accessCode').value.trim();
+
+        if (!accessCode) {
+            alert('Please enter an access code');
+            return;
+        }
+
+        console.log('Attempting to join with access code:', accessCode);
+
+        fetch('/join-private-community', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ accessCode })
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Failed to join community');
+            }
+            return data;
+        })
+        .then(data => {
+            console.log('Success:', data);
+            alert(`Successfully joined ${data.communityName}!`);
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message || 'Failed to join community');
+        });
+    });
     function openCreateModal() {
-        document.getElementById("create-modal").style.display = "block";
+        document.getElementById("create-modal").style.display = "flex";
     }
+
     function closeCreateModal() {
         document.getElementById("create-modal").style.display = "none";
     }
+
     function openJoinModal() {
-        document.getElementById("join-modal").style.display = "block";
+        document.getElementById("join-modal").style.display = "flex";
     }
+
     function closeJoinModal() {
         document.getElementById("join-modal").style.display = "none";
+    }
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.style.display = "none";
+        }
     }
 </script>
 

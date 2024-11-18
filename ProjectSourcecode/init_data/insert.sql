@@ -14,3 +14,6 @@ INSERT INTO communities (name, description, is_private, access_code, created_by)
 
 -- Inserting friends after users
 
+INSERT INTO community_roles (role_name, description) VALUES 
+('Admin', 'Full control over community settings and members'),
+('Member', 'Regular community member');

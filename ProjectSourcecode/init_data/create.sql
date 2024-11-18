@@ -53,9 +53,9 @@ CREATE TABLE IF NOT EXISTS community_roles (
 );
 
 CREATE TABLE IF NOT EXISTS community_memberships (
-    community_id INT REFERENCES communities(community_id) ON DELETE CASCADE,
+    community_id INTEGER REFERENCES communities(community_id) ON DELETE CASCADE,
     username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
-    role_id INT REFERENCES community_roles(role_id) ON DELETE SET NULL,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (community_id, username)
 );
 

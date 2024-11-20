@@ -40,10 +40,12 @@
                 {{#each friends}}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <span>{{this.friend_username}}</span>
-                    <form class="d-inline" action="/remove-friend" method="POST">
-                        <input type="hidden" name="friendId" value="{{this.id}}">
-                        <button type="submit" class="btn btn-danger btn-sm">Remove Friend</button>
-                    </form>
+                    <button 
+                        class="btn btn-danger btn-sm remove-friend-btn" 
+                        data-friend-id="{{this.id}}" 
+                        data-friend-name="{{this.friend_username}}">
+                        Remove Friend
+                    </button>
                 </div>
                 {{/each}}
             </div>
@@ -71,6 +73,53 @@
     </div>
 </div>
 
+<!-- Modal for Confirmation -->
+<div class="modal fade" id="confirmRemoveModal" tabindex="-1" role="dialog" aria-labelledby="confirmRemoveModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmRemoveModalLabel">Confirm Remove Friend</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to remove <strong id="friendName"></strong> from your friends list?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="removeFriendForm" method="POST" action="/remove-friend">
+                    <input type="hidden" name="friendId" id="friendId">
+                    <button type="submit" class="btn btn-danger">Remove</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('.remove-friend-btn').on('click', function() {
+            const friendId = $(this).data('friend-id');
+            const friendName = $(this).data('friend-name');
+
+            // Update modal content
+            $('#friendName').text(friendName);
+            $('#friendId').val(friendId);
+
+            // Show the modal
+            $('#confirmRemoveModal').modal('show');
+        });
+
+        // Ensure the modal closes on clicking cancel or the close button
+        $('#confirmRemoveModal').on('hidden.bs.modal', function() {
+            $('#friendName').text('');
+            $('#friendId').val('');
+        });
+    });
+</script>
 

@@ -115,8 +115,6 @@ app.use(bodyParser.json()); // specify the usage of JSON for parsing request bod
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 // initialize session variables
-app.use('/resources', express.static(path.join(__dirname, 'resources')));
-
 
 app.use(
   session({

@@ -80,7 +80,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server
+  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server - use db for testing locally
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -115,6 +115,8 @@ app.use(bodyParser.json()); // specify the usage of JSON for parsing request bod
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 // initialize session variables
+app.use('/resources', express.static('resources'));
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET,

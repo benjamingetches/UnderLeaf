@@ -80,7 +80,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server - use db for testing locally
+  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -1508,9 +1508,17 @@ transporter.verify(function(error, success) {
 function unescapeLatex(text) {
     if (!text) return '';
     return text
-        .replace(/\\'/g, "'")    // Unescape single quotes
-        .replace(/\\"/g, '"')    // Unescape double quotes
-        .replace(/\\\\/g, '\\'); // Handle escaped backslashes
+      .replace(/\\'/g, "'")    // Unescape single quotes
+      .replace(/&#027;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace("&#027;&#027;", "''")
+      .replace(/\\"/g, '"')    // Unescape double quotes
+      .replace(/\\\\/g, '\\')  // Handle escaped backslashes
+      .replace(/&quot;/g, '"') // Handle HTML entities
+      .replace("&#027;", "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
 }
 
 // Then update your get-note route

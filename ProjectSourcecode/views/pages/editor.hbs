@@ -451,26 +451,13 @@ body {
 
 {{#if note}}
   <script>
-      function unescapeLatex(text) {
-        if (!text) return '';
-        return text
-          .replace(/\\'/g, "'")    // Unescape single quotes
-          .replace(/\\"/g, '"')    // Unescape double quotes
-          .replace(/\\\\/g, '\\')  // Handle escaped backslashes
-          .replace(/&quot;/g, '"') // Handle HTML entities
-          .replace(/&#027;/g, "'")
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>');
-      }
     document.addEventListener('DOMContentLoaded', function() {
       const titleInput = document.getElementById('note-title');
-      titleInput.value = unescapeLatex(`{{note.title}}`);
-
-      // Sanitize and set the editor content
       const content = unescapeLatex(`{{note.content}}`);
-      editor.setValue(content);
-
+      
+      titleInput.value = unescapeLatex(`{{note.title}}`);
+      editor.setValue(content); // Set the unescaped content in the editor
+      
       // Force a refresh of the editor
       editor.refresh();
       
@@ -489,11 +476,12 @@ body {
       .replace(/\\"/g, '"')    // Unescape double quotes
       .replace(/\\\\/g, '\\')  // Handle escaped backslashes
       .replace(/&quot;/g, '"') // Handle HTML entities
-      .replace(/&#027;/g, "'")
+      .replace(/&#x27;/g, "'") // Handle hex encoded single quotes
+      .replace(/&#027;/g, "'") // Handle octal encoded single quotes
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .replace("&#x27;", "'")
+      .replace(/''|&#x27;&#x27;|&#027;&#027;/g, "''");
   }
 
   $(function() {
@@ -530,9 +518,8 @@ body {
 
   // Function to render LaTeX to HTML
   function renderLaTeX() {
-
-    const latexContent = unescapeLatex(editor.getValue());
-    console.log(latexContent);
+    const latexContent = editor.getValue();
+    
     // Clear previous content
     const preview = document.getElementById('latex-preview');
     preview.innerHTML = '';
@@ -540,11 +527,10 @@ body {
     try {
       // Initialize LaTeX.js generator
       const generator = new latexjs.HtmlGenerator({
-        hyphenate: false, // Disable hyphenation if desired
-        // You can add more options here
+        hyphenate: false,
       });
 
-      // Parse LaTeX content
+      // Parse LaTeX content (already unescaped)
       const documentObj = latexjs.parse(latexContent, { generator: generator });
 
       // Append styles and scripts
@@ -553,7 +539,6 @@ body {
       // Append the rendered LaTeX
       preview.appendChild(generator.domFragment());
     } catch (error) {
-      // Display error messages in the preview
       preview.innerHTML = `<pre style="color: red;">${error.message}</pre>`;
     }
   }
@@ -654,9 +639,11 @@ document.getElementById('notes-dropdown').addEventListener('click', async functi
 
       if (response.ok) {
         const note = await response.json();
-        editor.setValue(note.content); // Load the note's content into the editor
-        document.getElementById('note-title').value = note.title; // Set the title input
-        renderLaTeX(); // Optionally trigger the rendering
+        const unescapedContent = unescapeLatex(note.content);
+        
+        editor.setValue(unescapedContent); // Set unescaped content
+        document.getElementById('note-title').value = unescapeLatex(note.title);
+        renderLaTeX();
 
         // Hide the dropdown menu after selection
         $('.dropdown-toggle').dropdown('hide');

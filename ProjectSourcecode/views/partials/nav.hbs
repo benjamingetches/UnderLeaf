@@ -42,6 +42,17 @@
               </li>
             {{/if}}
           </ul>
+          {{#if user}}
+          <li class="nav-item me-3 d-flex align-items-center">
+              <div class="credits-display" style="cursor: pointer;" onclick="showCreditsInfo()">
+                  {{#if user.is_premium}}
+                      <span class="badge bg-success">Premium</span>
+                  {{else}}
+                      <span class="badge bg-secondary">Credits: {{user.ai_credits}}</span>
+                  {{/if}}
+              </div>
+          </li>
+          {{/if}}
           <div class="nav-item user-icon" onclick="openUserMenu(event)">
             {{#if user}}
               <span>{{firstLetter user.username}}</span>
@@ -164,20 +175,32 @@
     position: relative;
   }
 
+  .credits-display {
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+  }
 
+  .credits-display .badge {
+      padding: 6px 12px;
+      font-weight: 500;
+  }
   .logo {
-    max-height: 50px; /* Set a maximum height for the logo */
-    margin-right: 1rem; /* Space between logo and next element */
-    position: absolute; /* Position it absolutely */
-    left: 0; /* Align it to the left */
-    top: 50%; /* Center it vertically */
-    transform: translateY(-50%); /* Adjust for perfect vertical centering */
+    max-height: 50px; 
+    margin-right: 1rem; 
+    position: absolute; 
+    left: 0; 
+    top: 50%; 
+    transform: translateY(-50%); 
   }
 
   .user-actions {
-    display: flex; /* Use flexbox for alignment */
-    align-items: center; /* Center items vertically */
-    margin-left: auto; /* Push this container to the right */
+    display: flex; 
+    align-items: center;
+    margin-left: auto; 
   }
 
   .user-menu-modal {
@@ -201,14 +224,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px; /* Reduced margin */
+    margin-bottom: 10px;
     border-bottom: 1px solid #eee; /* Keep this border */
   }
 
   .close {
     cursor: pointer;
     align-self: flex-end; /* Align close button to the right */
-    font-size: 20px; /* Size of the close button */
+    font-size: 20px; 
     color: #666;
     padding: 0;
   }

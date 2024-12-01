@@ -1,0 +1,226 @@
+<div class="modal fade" id="noCreditsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #accaa1; border-bottom: none;">
+                <h5 class="modal-title">Out of AI Credits</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: #fff;">
+                <div class="text-center mb-4">
+                    <div class="credits-icon">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                    <h4 class="mt-3">You're out of AI credits!</h4>
+                    <p class="text-muted">Free users get 10 AI credits per week.</p>
+                    <p class="text-muted">Your credits will refresh on <span class="refresh-date"></span></p>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn premium-btn">
+                        Upgrade to Premium
+                    </button>
+                    <button class="btn later-btn" data-bs-dismiss="modal">
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="creditsInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #accaa1; border-bottom: none;">
+                <h5 class="modal-title">Your AI Credits</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: #fff;">
+                <div class="text-center mb-4">
+                    <div class="credits-icon">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                    {{#if user.is_premium}}
+                        <h4 class="mt-3">Premium Member</h4>
+                        <p class="text-muted">Enjoy unlimited AI features!</p>
+                    {{else}}
+                        <h4 class="mt-3">Free Account</h4>
+                        <p class="text-muted">You have <span class="fw-bold">{{user.ai_credits}}</span> credits remaining</p>
+                        <div class="features-list mt-3 mb-4 text-start">
+                            <p><i class="fas fa-check text-success me-2"></i> Photo to LaTeX conversion</p>
+                            <p><i class="fas fa-check text-success me-2"></i> AI text improvements</p>
+                            <p><i class="fas fa-check text-success me-2"></i> Smart formatting</p>
+                        </div>
+                        <p class="text-muted">Get unlimited access with Premium!</p>
+                    {{/if}}
+                </div>
+                {{#unless user.is_premium}}
+                    <div class="d-grid gap-2">
+                        <button class="btn premium-btn" onclick="upgradeToPremium()">
+                            Upgrade to Premium
+                        </button>
+                        <button class="btn later-btn" data-bs-dismiss="modal">
+                            Maybe Later
+                        </button>
+                    </div>
+                {{/unless}}
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    #noCreditsModal .modal-content {
+        border-radius: 10px;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    #noCreditsModal .modal-header {
+        padding: 20px;
+    }
+
+    #noCreditsModal .modal-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    #noCreditsModal .credits-icon {
+        width: 80px;
+        height: 80px;
+        background: #bcecac;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        color: #2c3e50;
+    }
+
+    #noCreditsModal .modal-body {
+        padding: 30px;
+    }
+
+    #noCreditsModal h4 {
+        color: #2c3e50;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    #noCreditsModal .premium-btn {
+        background-color: #accaa1;
+        color: #fff;
+        padding: 12px;
+        border-radius: 5px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    #noCreditsModal .premium-btn:hover {
+        background-color: #8fb582;
+        transform: translateY(-2px);
+    }
+
+    #noCreditsModal .later-btn {
+        background-color: transparent;
+        color: #2c3e50;
+        border: 1px solid #accaa1;
+        padding: 12px;
+        border-radius: 5px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    #noCreditsModal .later-btn:hover {
+        background-color: #f5f5f5;
+    }   
+    .features-list p {
+        font-size: 0.95rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+
+<script>
+function updateCreditsDisplay(credits) {
+    // Update modal
+    const creditSpan = document.querySelector('#creditsInfoModal .fw-bold');
+    if (creditSpan) {
+        creditSpan.textContent = credits;
+    }
+    
+    // Update navbar
+    const navCredits = document.querySelector('.credits-display .badge');
+    if (navCredits && !navCredits.classList.contains('bg-success')) { // Don't update if it's a premium badge
+        navCredits.textContent = `Credits: ${credits}`;
+    }
+}
+
+function showCreditsInfo() {
+    fetch('/get-user-credits')
+        .then(response => response.json())
+        .then(data => {
+            updateCreditsDisplay(data.ai_credits);
+            const creditsInfoModal = new bootstrap.Modal(document.getElementById('creditsInfoModal'));
+            creditsInfoModal.show();
+        })
+        .catch(error => console.error('Error fetching credits:', error));
+}
+
+// Update the handleAIError to also refresh credits
+function handleAIError(error) {
+    if (error.status === 403) {
+        console.log('Handling 403 error');
+        error.json()
+            .then(errorData => {
+                console.log('Full error data:', errorData);
+                
+                // Get the reset date from the error response
+                const resetDate = new Date(errorData.last_credit_reset);
+                console.log('Parsed reset date:', resetDate);
+                
+                // Add 7 days
+                const nextReset = new Date(resetDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+                console.log('Next reset date:', nextReset);
+                
+                // Format the date
+                const dateString = nextReset.toLocaleString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                });
+                console.log('Formatted date string:', dateString);
+                
+                // Update credits display
+                updateCreditsDisplay(0); // Set to 0 since we're out of credits
+                
+                // Find and update the span
+                const refreshSpan = document.querySelector('#noCreditsModal .refresh-date');
+                console.log('Found refresh span:', refreshSpan);
+                
+                if (refreshSpan) {
+                    refreshSpan.textContent = dateString;
+                    console.log('Set span text to:', dateString);
+                }
+                
+                // Show the modal
+                const noCreditsModal = new bootstrap.Modal(document.getElementById('noCreditsModal'));
+                noCreditsModal.show();
+            })
+            .catch(err => {
+                console.error('Error parsing 403 response:', err);
+                // Still show the modal even if date parsing fails
+                const noCreditsModal = new bootstrap.Modal(document.getElementById('noCreditsModal'));
+                noCreditsModal.show();
+            });
+    }
+}
+
+function upgradeToPremium() {
+    // To be implemented with payment integration
+    alert('Premium upgrades coming soon!');
+}
+</script>

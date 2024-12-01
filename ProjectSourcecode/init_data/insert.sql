@@ -17,3 +17,8 @@ INSERT INTO communities (name, description, is_private, access_code, created_by)
 INSERT INTO community_roles (role_name, description) VALUES 
 ('Admin', 'Full control over community settings and members'),
 ('Member', 'Regular community member');
+
+-- First, ensure the column exists
+UPDATE users 
+SET last_credit_reset = CURRENT_TIMESTAMP 
+WHERE last_credit_reset IS NULL;

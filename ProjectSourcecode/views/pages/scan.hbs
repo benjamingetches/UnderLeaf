@@ -238,30 +238,66 @@ async function compressImage(base64Image) {
     });
 }
     // Process a single image
-    async function processImageToLatex(base64Image) {
-        try {
-            const compressedImage = await compressImage(base64Image);
-            const response = await fetch('/photo-to-latex', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    photo: compressedImage
-                })
+async function processImageToLatex(base64Image) {
+    try {
+        const compressedImage = await compressImage(base64Image);
+        const response = await fetch('/photo-to-latex', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                photo: compressedImage
+            })
+        });
+
+        // Add logging here
+        console.log('Response status:', response.status);
+        
+        if (response.status === 403) {
+            const errorData = await response.json();
+            console.log('403 error data:', errorData);
+            
+            // Show the modal directly here instead of using handleAIError
+            const resetDate = new Date(errorData.last_credit_reset);
+            console.log('Reset date:', resetDate);
+            
+            const nextReset = new Date(resetDate);
+            nextReset.setDate(nextReset.getDate() + 7);
+            console.log('Next reset:', nextReset);
+            
+            const dateString = nextReset.toLocaleString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to process image');
+            console.log('Formatted date:', dateString);
+            
+            const refreshSpan = document.querySelector('#noCreditsModal .refresh-date');
+            if (refreshSpan) {
+                refreshSpan.textContent = dateString;
+                console.log('Updated span with:', dateString);
             }
-
-            const data = await response.json();
-            return data.latex;
-        } catch (error) {
-            console.error('Error:', error);
-            throw error;
+            
+            const noCreditsModal = new bootstrap.Modal(document.getElementById('noCreditsModal'));
+            noCreditsModal.show();
+            return null;
         }
+
+        if (!response.ok) {
+            throw new Error('Failed to process image');
+        }
+
+        const data = await response.json();
+        return data.latex;
+    } catch (error) {
+        console.error('Error in processImageToLatex:', error);
+        throw error;
     }
+}
 
     // Process all images in queue
 async function processAllImages() {
@@ -272,6 +308,10 @@ async function processAllImages() {
         processedContent.textContent = `Processing image ${i + 1} of ${imageQueue.length}...`;
         try {
             const latex = await processImageToLatex(imageQueue[i]);
+            if (latex === null) {
+                // Credits ran out, stop processing
+                return;
+            }
             allLatex += latex + '\n\n';
             processedContent.textContent = allLatex;
         } catch (error) {
@@ -292,11 +332,13 @@ async function processAllImages() {
 
         try {
             processedLatexContent = await processAllImages();
-            document.getElementById('processedContent').textContent = processedLatexContent;
             
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('processedModal'));
-            modal.show();
+            // Only show the processed modal if we got content back
+            if (processedLatexContent) {
+                document.getElementById('processedContent').textContent = processedLatexContent;
+                const modal = new bootstrap.Modal(document.getElementById('processedModal'));
+                modal.show();
+            }
         } catch (error) {
             console.error('Error:', error);
             alert('Error processing images: ' + error.message);

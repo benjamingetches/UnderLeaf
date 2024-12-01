@@ -1,288 +1,158 @@
-<div class="community-profile">
-    <style>
-        /* Styling for the profile layout */
-        .community-profile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-        }
-
-        .community-header {
-            display: flex;
-            align-items: flex-start;
-            width: 100%;
-            max-width: 600px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-
-        .community-logo .logo-img {
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
-            margin-right: 20px;
-        }
-
-        .community-details h2 {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-        }
-
-        .community-details p {
-            font-size: 16px;
-            color: #555;
-            margin-top: 5px;
-        }
-
-        .community-actions {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .community-actions .btn {
-            padding: 10px 20px;
-            background-color: #0073b1;
-            color: white;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        .community-actions .btn:hover {
-            background-color: #005f8d;
-        }
-
-        /* Modal styling */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background-color: #fff;
-            padding: 20px;
-            width: 80%;
-            max-width: 500px;
-            border-radius: 8px;
-            position: relative;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h3 {
-            margin: 0;
-        }
-
-        .modal-close {
-            cursor: pointer;
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        .member-search {
-            margin-top: 10px;
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .member-list {
-            margin-top: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .member-item {
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        /* Chat styling */
-        .chat-box {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 600px;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        .chat-messages {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 10px;
-        }
-
-        .chat-message {
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .chat-form {
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-form input {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .chat-form button {
-            padding: 8px 20px;
-            background-color: #0073b1;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-    </style>
-
-    <!-- Community Header Section -->
-    <div class="community-header">
-        <div class="community-logo">
-            <img src="{{community.community_picture_url}}" alt="Community Logo" class="logo-img">
-        </div>
-        <div class="community-details">
-            <h2>{{community.name}}</h2>
-            <p>{{community.description}}</p>
-        </div>
-    </div>
-
-    <!-- Community Actions -->
-    <div class="community-actions">
-        <a href="/community/{{community.community_id}}/notes" class="btn">View Community Notes</a>
-        <button class="btn" onclick="openMembersModal()">See Members</button>
-        <button class="btn" onclick="openChat()">Community Chat</button>
-    </div>
-
-    <!-- Members Modal -->
-    <div id="membersModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Community Members</h3>
-                <span class="modal-close" onclick="closeMembersModal()">&times;</span>
+<div class="community-container">
+    {{#if community}}
+        <!-- Community Header -->
+        <div class="community-header">
+            <h1>{{community.name}}</h1>
+            <p class="description">{{community.description}}</p>
+            {{#if community.Community_picture_url}}
+                <img src="{{community.Community_picture_url}}" alt="Community Picture" class="community-image">
+            {{/if}}
+            <div class="stats">
+                <span class="member-count">{{community.member_count}} members</span>
             </div>
-            <input type="text" class="member-search" placeholder="Search members..." onkeyup="searchMembers(this.value)">
-            <div class="member-list" id="memberList"></div>
         </div>
-    </div>
 
-    <!-- Community Chat Box -->
-    <div id="chatBox" class="chat-box" style="display: none;">
-        <div class="chat-messages" id="chatMessages">
-            {{#each messages}}
-                <div class="chat-message">
-                    <strong>{{this.username}}</strong>: {{this.content}}
-                </div>
-            {{/each}}
+        <!-- Community Actions -->
+        <div class="community-actions">
+            {{#if isMember}}
+                <form action="/community/{{community.community_id}}/leave" method="POST" class="action-form">
+                    <button type="submit" class="btn btn-danger">Leave Community</button>
+                </form>
+            {{else}}
+                <form action="/community/{{community.community_id}}/join" method="POST" class="action-form">
+                    <button type="submit" class="btn btn-primary">Join Community</button>
+                </form>
+            {{/if}}
+            
+            {{#if isAdmin}}
+                <button class="btn btn-secondary" onclick="openManageModal()">Manage Community</button>
+            {{/if}}
         </div>
-        <form class="chat-form" onsubmit="postMessage(event)">
-            <input type="text" id="messageInput" placeholder="Type a message...">
-            <button type="submit">Send</button>
-        </form>
-    </div>
+
+        <!-- Main Content Area -->
+        <div class="community-content">
+            <!-- Members Section -->
+            <div class="members-panel">
+                <h3>Members</h3>
+                <ul class="members-list">
+                    {{#each members}}
+                        <li class="member-item">
+                            <span class="username">{{this.username}}</span>
+                            {{#if this.is_admin}}
+                                <span class="admin-badge">Admin</span>
+                            {{/if}}
+                        </li>
+                    {{/each}}
+                </ul>
+            </div>
+
+            <!-- Chat Section -->
+            {{#if isMember}}
+                <div class="chat-panel">
+                    <h3>Community Chat</h3>
+                    <div class="messages-container">
+                        {{#each messages}}
+                            <div class="message">
+                                <div class="message-header">
+                                    <strong>{{this.username}}</strong>
+                                    <span class="timestamp">{{this.sent_at}}</span>
+                                </div>
+                                <div class="message-content">
+                                    {{this.content}}
+                                </div>
+                            </div>
+                        {{/each}}
+                    </div>
+                    <form id="messageForm" class="message-form">
+                        <input type="text" id="messageInput" placeholder="Type your message..." required>
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </form>
+                </div>
+            {{/if}}
+        </div>
+    {{else}}
+        <p>Community not found.</p>
+    {{/if}}
 </div>
 
-<script>
-    // Open Members Modal
-    function openMembersModal() {
-        fetch(`/community/{{community.community_id}}/members`)
-            .then(response => response.json())
-            .then(members => {
-                const memberList = document.getElementById("memberList");
-                memberList.innerHTML = '';
-                members.forEach(member => {
-                    const memberItem = document.createElement("div");
-                    memberItem.classList.add("member-item");
-                    memberItem.textContent = member.username;
-                    memberList.appendChild(memberItem);
-                });
-                document.getElementById("membersModal").style.display = "flex";
-            })
-            .catch(error => console.error("Error fetching members:", error));
+<style>
+    .community-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
     }
 
-    // Close Members Modal
-    function closeMembersModal() {
-        document.getElementById("membersModal").style.display = "none";
+    .community-header {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
     }
 
-    // Search Members
-    function searchMembers(query) {
-        const members = document.querySelectorAll(".member-item");
-        members.forEach(member => {
-            if (member.textContent.toLowerCase().includes(query.toLowerCase())) {
-                member.style.display = "block";
-            } else {
-                member.style.display = "none";
-            }
-        });
+    .community-image {
+        max-width: 200px;
+        border-radius: 8px;
+        margin: 10px 0;
     }
 
-    // Open Community Chat
-    function openChat() {
-        document.getElementById("chatBox").style.display = "block";
-        loadMessages();
+    .description {
+        color: #666;
+        margin: 10px 0;
     }
 
-    // Load Chat Messages
-    function loadMessages() {
-        fetch(`/community/{{community.community_id}}/chat`)
-            .then(response => response.json())
-            .then(messages => {
-                const chatMessages = document.getElementById("chatMessages");
-                chatMessages.innerHTML = '';
-                messages.forEach(message => {
-                    const chatMessage = document.createElement("div");
-                    chatMessage.classList.add("chat-message");
-                    chatMessage.innerHTML = `<strong>${message.username}</strong>: ${message.content}`;
-                    chatMessages.appendChild(chatMessage);
-                });
-            })
-            .catch(error => console.error("Error loading messages:", error));
+    .community-content {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        gap: 20px;
     }
 
-    // Post Message in Chat
-    function postMessage(event) {
-        event.preventDefault();
-        const content = document.getElementById("messageInput").value;
-
-        fetch(`/community/{{community.community_id}}/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ content })
-        })
-        .then(response => {
-            if (response.ok) {
-                document.getElementById("messageInput").value = '';
-                loadMessages();
-            } else {
-                console.error("Failed to post message");
-            }
-        })
-        .catch(error => console.error("Error posting message:", error));
+    .members-panel, .chat-panel {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
     }
-</script>
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 0 5px;
+    }
+
+    .btn-primary { background-color: #0073b1; color: white; }
+    .btn-danger { background-color: #dc3545; color: white; }
+    .btn-secondary { background-color: #6c757d; color: white; }
+
+    .messages-container {
+        max-height: 400px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+    }
+
+    .message {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .message-form {
+        display: flex;
+        gap: 10px;
+    }
+
+    .message-form input {
+        flex-grow: 1;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .admin-badge {
+        background: #007bff;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.8em;
+    }
+</style>

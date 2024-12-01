@@ -23,6 +23,7 @@ const nodemailer = require('nodemailer');
 // *****************************************************
 
 // create `ExpressHandlebars` instance and configure the layouts and partials dir.
+
 const hbs = handlebars.create({
   extname: 'hbs',
   layoutsDir: __dirname + '/views/layouts',
@@ -68,6 +69,8 @@ const hbs = handlebars.create({
   }
 });
 
+
+
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
@@ -109,8 +112,7 @@ db.connect()
 
 // Register `hbs` as our view engine using its bound `engine()` function.
 app.engine('hbs', hbs.engine);
-app.set('view engine', 'hbs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'hbs');app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.json()); // specify the usage of JSON for parsing request body.
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
@@ -495,6 +497,7 @@ app.post('/register', async (req, res) => {
     }
 });
 
+
 app.get('/editor', async (req, res) => {
     const user = req.session.user;
     res.render('pages/editor', { user });
@@ -847,24 +850,40 @@ app.get('/community/:id', async (req, res) => {
     const communityId = req.params.id;
     const user = req.session.user;
 
-    // Fetch community details
+    // Get community details
     const community = await db.oneOrNone(
-      `SELECT * FROM communities WHERE community_id = $1`,
+      `SELECT c.*, 
+              (SELECT COUNT(*) FROM community_memberships WHERE community_id = c.community_id) as member_count
+       FROM communities c
+       WHERE c.community_id = $1`,
       [communityId]
     );
 
-    // Fetch community members
-    const members = await db.any(
-      `SELECT u.username, cm.is_admin 
-       FROM community_memberships cm
-       JOIN users u ON cm.username = u.username
-       WHERE cm.community_id = $1`,
-      [communityId]
-    );
+    if (!community) {
+      return res.status(404).send("Community not found.");
+    }
 
-    // Fetch recent chat messages (last 20 messages)
+    // Get members list
+// Get members list with admin status
+const members = await db.any(
+  `SELECT u.username,
+          CASE WHEN c.created_by = u.username THEN true ELSE false END as is_admin
+   FROM community_memberships cm
+   JOIN users u ON cm.username = u.username
+   JOIN communities c ON cm.community_id = c.community_id
+   WHERE cm.community_id = $1`,
+  [communityId]
+);
+
+    // Check if current user is member
+    const isMember = members.some(m => m.username === user.username);
+    
+    // Check if current user is creator (admin)
+    const isAdmin = community.created_by === user.username;
+
+    // Get messages
     const messages = await db.any(
-      `SELECT m.message_id, m.username, m.content, m.sent_at, u.profile_picture_url
+      `SELECT m.*, u.username
        FROM community_messages m
        JOIN users u ON m.username = u.username
        WHERE m.community_id = $1
@@ -873,29 +892,34 @@ app.get('/community/:id', async (req, res) => {
       [communityId]
     );
 
-    // Render the unique community page with the community data, members, and messages
     res.render('pages/uniqueCommunity', {
       community,
       members,
-      messages,
-      user: user
+      messages: messages.reverse(),
+      user,
+      isMember,
+      isAdmin
     });
+
   } catch (error) {
-    console.error('Error fetching community page:', error);
+    console.error('Detailed error in /community/:id:', {
+      error: error.message,
+      stack: error.stack,
+      query: error?.query
+    });
     res.status(500).send("Server error while fetching the community.");
   }
 });
-
-// Post a message to community chat
-app.post('/community/:id/chat', async (req, res) => {
+// Add endpoint for posting messages
+app.post('/community/:id/message', async (req, res) => {
   if (!req.session.user) {
-    return res.status(401).send("Unauthorized: Please log in to send messages.");
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
+    const { content } = req.body;
     const communityId = req.params.id;
     const username = req.session.user.username;
-    const content = req.body.content;
 
     await db.none(
       `INSERT INTO community_messages (community_id, username, content)
@@ -903,12 +927,13 @@ app.post('/community/:id/chat', async (req, res) => {
       [communityId, username, content]
     );
 
-    res.sendStatus(200);
+    res.json({ success: true });
   } catch (error) {
     console.error('Error posting message:', error);
-    res.status(500).send("Server error while posting the message.");
+    res.status(500).json({ error: "Error posting message" });
   }
 });
+
 
 // Fetch all community members (for modal view)
 app.get('/community/:id/members', async (req, res) => {

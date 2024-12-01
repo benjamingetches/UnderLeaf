@@ -2,7 +2,10 @@ CREATE TABLE IF NOT EXISTS users(
 username VARCHAR(50) PRIMARY KEY,
 email VARCHAR(50) NOT NULL,
 password CHAR(60) NOT NULL,
-profile_photo_url VARCHAR(255) -- URL for the friend's profile photo
+profile_photo_url VARCHAR(255), -- URL for the friend's profile photo
+is_premium BOOLEAN DEFAULT FALSE,
+ai_credits INTEGER DEFAULT 10,
+last_credit_reset TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS notes(
@@ -100,3 +103,6 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     used BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- Then update any NULL values to current timestamp

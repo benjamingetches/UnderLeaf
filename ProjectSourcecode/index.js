@@ -289,15 +289,105 @@ app.post('/reset-password', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset password' });
   }
 });
+async function refreshWeeklyCredits() {
+  try {
+      // Get all non-premium users whose credits were last reset more than 7 days ago
+      const usersToReset = await db.any(`
+          SELECT username 
+          FROM users 
+          WHERE NOT is_premium 
+          AND (last_credit_reset IS NULL OR last_credit_reset < NOW() - INTERVAL '7 days')`
+      );
+
+      if (usersToReset.length > 0) {
+          // Reset credits and update last_credit_reset timestamp
+          await db.none(`
+              UPDATE users 
+              SET ai_credits = 10, 
+                  last_credit_reset = NOW() 
+              WHERE username = ANY($1)`, 
+              [usersToReset.map(u => u.username)]
+          );
+          
+          console.log(`Reset credits for ${usersToReset.length} users`);
+      }
+  } catch (error) {
+      console.error('Error refreshing weekly credits:', error);
+  }
+}
+const checkAICredits = async (req, res, next) => {
+  if (!req.session.user) return next();
+  
+  try {
+      const user = await db.one('SELECT is_premium, ai_credits, last_credit_reset FROM users WHERE username = $1', 
+          [req.session.user.username]);
+      
+      if (user.is_premium) return next();
+      
+      if (user.ai_credits <= 0) {
+        console.log('Sending 403 with reset:', user.last_credit_reset);
+        return res.status(403).json({
+            error: 'No AI credits remaining',
+            message: 'Please upgrade to premium or wait for your credits to reset',
+            last_credit_reset: user.last_credit_reset
+        });
+      }
+      
+      // Deduct one credit and ensure last_credit_reset is set
+      await db.none(`
+          UPDATE users 
+          SET ai_credits = ai_credits - 1,
+              last_credit_reset = COALESCE(last_credit_reset, CURRENT_TIMESTAMP)
+          WHERE username = $1`, 
+          [req.session.user.username]
+      );
+      
+      // Update the session with new credit count
+      req.session.user.ai_credits = user.ai_credits - 1;
+      await req.session.save();
+      
+      next();
+  } catch (error) {
+      console.error('Error checking AI credits:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
 // Add these before any middleware or routes
-app.use((req, res, next) => {
-    console.log('Incoming request:', {
-        path: req.path,
-        method: req.method,
-        session: req.session,
-        body: req.method === 'POST' ? req.body : undefined
-    });
-    next();
+app.use(async (req, res, next) => {
+  if (req.session.user) {
+      try {
+          // Check if user needs credit refresh
+          const user = await db.oneOrNone(`
+              SELECT last_credit_reset 
+              FROM users 
+              WHERE username = $1 
+              AND NOT is_premium 
+              AND last_credit_reset < NOW() - INTERVAL '7 days'`,
+              [req.session.user.username]
+          );
+          
+          if (user) {
+              // Reset credits
+              await db.none(`
+                  UPDATE users 
+                  SET ai_credits = 10, 
+                      last_credit_reset = NOW() 
+                  WHERE username = $1`,
+                  [req.session.user.username]
+              );
+              
+              // Update session
+              req.session.user.ai_credits = 10;
+              await req.session.save();
+          }
+      } catch (error) {
+          console.error('Error checking credit refresh:', error);
+      }
+  }
+  next();
 });
 
 const auth = (req, res, next) => {
@@ -351,38 +441,38 @@ app.get('/register', (req, res) => {
 
 
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    try {
-        const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
-        
-        if (!user) {
-            return res.status(401).render('pages/auth', { 
-                loginError: 'Invalid username',
-                isRegister: false,
-                hideNav: true  // Hide the navbar on the login page
-            });
-        }
-        
-        const passwordValid = await bcrypt.compare(password, user.password);
-        if (!passwordValid) {
-            return res.status(401).render('pages/auth', { 
-                message: 'Invalid password',
-                isRegister: false,
-                hideNav: true  // Hide the navbar on the login page
-            });
-        }
-        
-        req.session.user = user;
-        req.session.save();
-        res.status(200).redirect('/editor');
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).render('pages/auth', { 
-            loginError: 'An error occurred during login',
-            isRegister: false,
-            hideNav: true  // Hide the navbar on the login page
-        });
-    }
+  const { username, password } = req.body;
+  try {
+      const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
+      
+      if (!user) {
+          return res.status(401).render('pages/auth', { 
+              loginError: 'Invalid username',
+              isRegister: false,
+              hideNav: true  // Hide the navbar on the login page
+          });
+      }
+      
+      const passwordValid = await bcrypt.compare(password, user.password);
+      if (!passwordValid) {
+          return res.status(401).render('pages/auth', { 
+              message: 'Invalid password',
+              isRegister: false,
+              hideNav: true  // Hide the navbar on the login page
+          });
+      }
+      
+      req.session.user = user;
+      req.session.save();
+      res.status(200).redirect('/editor');
+  } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).render('pages/auth', { 
+          loginError: 'An error occurred during login',
+          isRegister: false,
+          hideNav: true  // Hide the navbar on the login page
+      });
+  }
 });
 
 app.post('/register', async (req, res) => {
@@ -1706,7 +1796,7 @@ app.post('/share-template', async (req, res) => {
 
 
 
-app.post('/photo-to-latex', async (req, res) => {
+app.post('/photo-to-latex', checkAICredits, async (req, res) => {
   const { photo } = req.body;
   
   try {
@@ -1777,6 +1867,38 @@ app.post('/photo-to-latex', async (req, res) => {
       details: error.message,
       ...(error.response?.data && { apiError: error.response.data })
     });
+  }
+});
+
+app.get('/get-user-credits', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: 'Not logged in' });
+  }
+  
+  try {
+      const user = await db.one(`
+          SELECT username, ai_credits, is_premium, last_credit_reset,
+                 COALESCE(last_credit_reset, CURRENT_TIMESTAMP) as effective_reset
+          FROM users 
+          WHERE username = $1`, 
+          [req.session.user.username]
+      );
+      
+      console.log('User credit data from DB:', user); // Debug log
+      
+      // Update session with latest credits
+      req.session.user.ai_credits = user.ai_credits;
+      req.session.user.is_premium = user.is_premium;
+      await req.session.save();
+      
+      res.json({
+          ai_credits: user.ai_credits,
+          is_premium: user.is_premium,
+          last_credit_reset: user.effective_reset // Use the coalesced value
+      });
+  } catch (error) {
+      console.error('Error fetching credits:', error);
+      res.status(500).json({ error: 'Internal server error' });
   }
 });
 

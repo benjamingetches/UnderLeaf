@@ -79,8 +79,10 @@ const transporter = nodemailer.createTransport({
 
 });
 
+
+
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server dpg-csvpgvilqhvc73bgrnu0-a
+  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -100,9 +102,12 @@ db.connect()
     obj.done(); // success, release the connection;
   })
   .catch(error => {
-    console.log('ERROR:', error.message || error);
+      console.log('Database connection error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno
   });
-
+  });
 // *****************************************************
 // <!-- Section 3 : App Settings -->
 // *****************************************************
@@ -289,105 +294,15 @@ app.post('/reset-password', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset password' });
   }
 });
-async function refreshWeeklyCredits() {
-  try {
-      // Get all non-premium users whose credits were last reset more than 7 days ago
-      const usersToReset = await db.any(`
-          SELECT username 
-          FROM users 
-          WHERE NOT is_premium 
-          AND (last_credit_reset IS NULL OR last_credit_reset < NOW() - INTERVAL '7 days')`
-      );
-
-      if (usersToReset.length > 0) {
-          // Reset credits and update last_credit_reset timestamp
-          await db.none(`
-              UPDATE users 
-              SET ai_credits = 10, 
-                  last_credit_reset = NOW() 
-              WHERE username = ANY($1)`, 
-              [usersToReset.map(u => u.username)]
-          );
-          
-          console.log(`Reset credits for ${usersToReset.length} users`);
-      }
-  } catch (error) {
-      console.error('Error refreshing weekly credits:', error);
-  }
-}
-const checkAICredits = async (req, res, next) => {
-  if (!req.session.user) return next();
-  
-  try {
-      const user = await db.one('SELECT is_premium, ai_credits, last_credit_reset FROM users WHERE username = $1', 
-          [req.session.user.username]);
-      
-      if (user.is_premium) return next();
-      
-      if (user.ai_credits <= 0) {
-        console.log('Sending 403 with reset:', user.last_credit_reset);
-        return res.status(403).json({
-            error: 'No AI credits remaining',
-            message: 'Please upgrade to premium or wait for your credits to reset',
-            last_credit_reset: user.last_credit_reset
-        });
-      }
-      
-      // Deduct one credit and ensure last_credit_reset is set
-      await db.none(`
-          UPDATE users 
-          SET ai_credits = ai_credits - 1,
-              last_credit_reset = COALESCE(last_credit_reset, CURRENT_TIMESTAMP)
-          WHERE username = $1`, 
-          [req.session.user.username]
-      );
-      
-      // Update the session with new credit count
-      req.session.user.ai_credits = user.ai_credits - 1;
-      await req.session.save();
-      
-      next();
-  } catch (error) {
-      console.error('Error checking AI credits:', error);
-      res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-
-
 // Add these before any middleware or routes
-app.use(async (req, res, next) => {
-  if (req.session.user) {
-      try {
-          // Check if user needs credit refresh
-          const user = await db.oneOrNone(`
-              SELECT last_credit_reset 
-              FROM users 
-              WHERE username = $1 
-              AND NOT is_premium 
-              AND last_credit_reset < NOW() - INTERVAL '7 days'`,
-              [req.session.user.username]
-          );
-          
-          if (user) {
-              // Reset credits
-              await db.none(`
-                  UPDATE users 
-                  SET ai_credits = 10, 
-                      last_credit_reset = NOW() 
-                  WHERE username = $1`,
-                  [req.session.user.username]
-              );
-              
-              // Update session
-              req.session.user.ai_credits = 10;
-              await req.session.save();
-          }
-      } catch (error) {
-          console.error('Error checking credit refresh:', error);
-      }
-  }
-  next();
+app.use((req, res, next) => {
+    console.log('Incoming request:', {
+        path: req.path,
+        method: req.method,
+        session: req.session,
+        body: req.method === 'POST' ? req.body : undefined
+    });
+    next();
 });
 
 const auth = (req, res, next) => {
@@ -441,38 +356,38 @@ app.get('/register', (req, res) => {
 
 
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-      const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
-      
-      if (!user) {
-          return res.status(401).render('pages/auth', { 
-              loginError: 'Invalid username',
-              isRegister: false,
-              hideNav: true  // Hide the navbar on the login page
-          });
-      }
-      
-      const passwordValid = await bcrypt.compare(password, user.password);
-      if (!passwordValid) {
-          return res.status(401).render('pages/auth', { 
-              message: 'Invalid password',
-              isRegister: false,
-              hideNav: true  // Hide the navbar on the login page
-          });
-      }
-      
-      req.session.user = user;
-      req.session.save();
-      res.status(200).redirect('/editor');
-  } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).render('pages/auth', { 
-          loginError: 'An error occurred during login',
-          isRegister: false,
-          hideNav: true  // Hide the navbar on the login page
-      });
-  }
+    const { username, password } = req.body;
+    try {
+        const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
+        
+        if (!user) {
+            return res.status(401).render('pages/auth', { 
+                loginError: 'Invalid username',
+                isRegister: false,
+                hideNav: true  // Hide the navbar on the login page
+            });
+        }
+        
+        const passwordValid = await bcrypt.compare(password, user.password);
+        if (!passwordValid) {
+            return res.status(401).render('pages/auth', { 
+                message: 'Invalid password',
+                isRegister: false,
+                hideNav: true  // Hide the navbar on the login page
+            });
+        }
+        
+        req.session.user = user;
+        req.session.save();
+        res.status(200).redirect('/editor');
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).render('pages/auth', { 
+            loginError: 'An error occurred during login',
+            isRegister: false,
+            hideNav: true  // Hide the navbar on the login page
+        });
+    }
 });
 
 app.post('/register', async (req, res) => {
@@ -1642,16 +1557,16 @@ app.get('/templates', async (req, res) => {
 
       // Fetch user's own templates
       const userTemplates = await db.any(`
-          SELECT id, title, content, username 
-          FROM templates
-          WHERE username = $1
-          ORDER BY title`, 
+          SELECT t.*, true as can_edit
+          FROM templates t
+          WHERE t.username = $1
+          ORDER BY t.title`, 
           [user.username]
       );
 
       // Fetch templates shared with the user
       const sharedTemplates = await db.any(`
-          SELECT t.id, t.title, t.content, t.username, tp.can_edit 
+          SELECT t.*, tp.can_edit, tp.can_read
           FROM templates t
           JOIN template_permissions tp ON t.id = tp.template_id
           WHERE tp.username = $1 AND tp.can_read = true
@@ -1671,25 +1586,26 @@ app.get('/templates', async (req, res) => {
 });
 
 app.post('/create-template', async (req, res) => {
-  const { title, content } = req.body;
-  const user = req.session.user;
+  const { title, content, category } = req.body;
+  const username = req.session.user.username;
 
   try {
-      const result = await db.one(`
-          INSERT INTO templates (title, content, username) 
-          VALUES ($1, $2, $3) 
-          RETURNING id`, 
-          [title, content, user.username]
+      // Insert the template into the database
+      await db.none(
+          'INSERT INTO templates (title, content, category, username) VALUES ($1, $2, $3, $4)',
+          [title, content, category, username]
       );
 
-      res.status(201).json({ 
+      res.json({ 
           success: true, 
-          templateId: result.id, 
-          message: 'Template created successfully' 
+          message: 'Template saved successfully' 
       });
   } catch (error) {
       console.error('Error creating template:', error);
-      res.status(500).json({ success: false, error: 'Failed to create template' });
+      res.status(500).json({ 
+          success: false, 
+          error: 'Failed to save template' 
+      });
   }
 });
 
@@ -1760,12 +1676,14 @@ app.post('/share-template', async (req, res) => {
 
   try {
       // Verify user owns the template
-      const template = await db.one('SELECT * FROM templates WHERE id = $1 AND username = $2', [templateId, user.username]);
+      const template = await db.one(
+          'SELECT * FROM templates WHERE id = $1 AND username = $2',
+          [templateId, user.username]
+      );
 
       // Verify friendship exists
       const friendship = await db.oneOrNone(`
-          SELECT * 
-          FROM friends 
+          SELECT * FROM friends 
           WHERE ((requester = $1 AND addressee = $2) 
               OR (requester = $2 AND addressee = $1)) 
           AND status = 'accepted'`,
@@ -1773,7 +1691,10 @@ app.post('/share-template', async (req, res) => {
       );
 
       if (!friendship) {
-          return res.status(403).json({ success: false, error: 'Can only share templates with friends' });
+          return res.status(403).json({
+              success: false,
+              error: 'Can only share templates with friends'
+          });
       }
 
       // Check if sharing already exists
@@ -1781,10 +1702,16 @@ app.post('/share-template', async (req, res) => {
 
       if (existingShare) {
           // Update existing permissions
-          await db.none('UPDATE template_permissions SET can_edit = $1, updated_at = CURRENT_TIMESTAMP WHERE template_id = $2 AND username = $3', [canEdit, templateId, shareWith]);
+          await db.none(
+              'UPDATE template_permissions SET can_edit = $1, updated_at = CURRENT_TIMESTAMP WHERE template_id = $2 AND username = $3',
+              [canEdit, templateId, shareWith]
+          );
       } else {
           // Create new permissions
-          await db.none('INSERT INTO template_permissions (template_id, username, can_edit, can_read) VALUES ($1, $2, $3, true)', [templateId, shareWith, canEdit]);
+          await db.none(
+              'INSERT INTO template_permissions (template_id, username, can_edit, can_read) VALUES ($1, $2, $3, true)',
+              [templateId, shareWith, canEdit]
+          );
       }
 
       res.json({ success: true, message: 'Template shared successfully' });
@@ -1796,7 +1723,7 @@ app.post('/share-template', async (req, res) => {
 
 
 
-app.post('/photo-to-latex', checkAICredits, async (req, res) => {
+app.post('/photo-to-latex', async (req, res) => {
   const { photo } = req.body;
   
   try {
@@ -1867,38 +1794,6 @@ app.post('/photo-to-latex', checkAICredits, async (req, res) => {
       details: error.message,
       ...(error.response?.data && { apiError: error.response.data })
     });
-  }
-});
-
-app.get('/get-user-credits', async (req, res) => {
-  if (!req.session.user) {
-      return res.status(401).json({ error: 'Not logged in' });
-  }
-  
-  try {
-      const user = await db.one(`
-          SELECT username, ai_credits, is_premium, last_credit_reset,
-                 COALESCE(last_credit_reset, CURRENT_TIMESTAMP) as effective_reset
-          FROM users 
-          WHERE username = $1`, 
-          [req.session.user.username]
-      );
-      
-      console.log('User credit data from DB:', user); // Debug log
-      
-      // Update session with latest credits
-      req.session.user.ai_credits = user.ai_credits;
-      req.session.user.is_premium = user.is_premium;
-      await req.session.save();
-      
-      res.json({
-          ai_credits: user.ai_credits,
-          is_premium: user.is_premium,
-          last_credit_reset: user.effective_reset // Use the coalesced value
-      });
-  } catch (error) {
-      console.error('Error fetching credits:', error);
-      res.status(500).json({ error: 'Internal server error' });
   }
 });
 

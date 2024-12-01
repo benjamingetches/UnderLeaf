@@ -78,7 +78,7 @@
 
 .preview-header-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -91,10 +91,37 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  color: #666;
+  transition: all 0.2s ease;
 }
 
 .preview-action-btn:hover {
   background-color: #f5f5f5;
+  color: #4a90e2;
+  border-color: #4a90e2;
+}
+
+.preview-action-btn .btn-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.preview-action-btn[title]:hover:after {
+  content: attr(title);
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.preview-action-btn {
+  position: relative;
 }
 
 .ai-edit-btn {
@@ -332,10 +359,14 @@ body {
     <div class="preview-header-container">
       <div class="preview-header-left">Preview</div>
       <div class="preview-header-actions">
-        <button class="preview-action-btn" id="download-preview">
+        <button class="preview-action-btn" id="download-preview" title="Download">
           <i class="fas fa-download"></i>
         </button>
-        <button class="preview-action-btn" id="share-preview">
+        <button class="preview-action-btn" id="save-as-template" title="Save as Template">
+          <i class="fas fa-save"></i>
+          <span class="btn-text">Template</span>
+        </button>
+        <button class="preview-action-btn" id="share-preview" title="Share">
           <i class="fas fa-share-alt"></i>
         </button>
         <button class="ai-edit-btn" id="ai-edit-btn">
@@ -438,6 +469,38 @@ body {
   </div>
 </div>
 
+<!-- Add this modal after your existing modals -->
+<div class="modal fade" id="saveTemplateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save as Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="templateTitle" class="form-label">Template Title</label>
+                    <input type="text" class="form-control" id="templateTitle" required>
+                </div>
+                <div class="mb-3">
+                    <label for="templateCategory" class="form-label">Category</label>
+                    <select class="form-select" id="templateCategory">
+                        <option value="Academic">Academic</option>
+                        <option value="Scientific">Scientific</option>
+                        <option value="Professional">Professional</option>
+                        <option value="Presentation">Presentation</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSaveTemplate">Save Template</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- CodeMirror JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
 <!-- CodeMirror LaTeX Mode -->
@@ -497,7 +560,7 @@ body {
     });
   });
 
-  // Initialize CodeMirror
+  // Initialize 
   const editor = CodeMirror.fromTextArea(document.getElementById('latex-editor'), {
     mode: 'stex',
     theme: 'monokai', // Optional: change theme as desired
@@ -1111,6 +1174,33 @@ document.addEventListener('DOMContentLoaded', function() {
       modal.show();
     }
   });
+
+  // Check if we're loading a template
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('template') === 'true') {
+    const templateContent = sessionStorage.getItem('template_content');
+    const templateTitle = sessionStorage.getItem('template_title');
+    
+    if (templateContent) {
+      // Unescape the content before setting it in the editor
+      const unescapedContent = unescapeLatex(templateContent);
+      
+      // Set the editor content
+      editor.setValue(unescapedContent);
+      
+      // Set the title if provided
+      if (templateTitle) {
+        document.getElementById('note-title').value = templateTitle;
+      }
+      
+      // Render the preview
+      renderLaTeX();
+      
+      // Clear the template from sessionStorage
+      sessionStorage.removeItem('template_content');
+      sessionStorage.removeItem('template_title');
+    }
+  }
 });
 
 // Add this function near the top of your script
@@ -1157,5 +1247,49 @@ document.getElementById('share-preview').addEventListener('click', async () => {
     cleanupModal('shareModal');
     this.remove();
   });
+});
+
+document.getElementById('save-as-template').addEventListener('click', function() {
+    const modal = new bootstrap.Modal(document.getElementById('saveTemplateModal'));
+    modal.show();
+});
+
+document.getElementById('confirmSaveTemplate').addEventListener('click', async function() {
+    const title = document.getElementById('templateTitle').value.trim();
+    const category = document.getElementById('templateCategory').value;
+    const content = editor.getValue();
+
+    if (!title) {
+        alert('Please enter a template title');
+        return;
+    }
+
+    try {
+        const response = await fetch('/create-template', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title,
+                content,
+                category,
+                username: '{{user.username}}'
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Template saved successfully!');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('saveTemplateModal'));
+            modal.hide();
+        } else {
+            throw new Error(data.error || 'Failed to save template');
+        }
+    } catch (error) {
+        console.error('Error saving template:', error);
+        alert('Error saving template: ' + error.message);
+    }
 });
 </script>

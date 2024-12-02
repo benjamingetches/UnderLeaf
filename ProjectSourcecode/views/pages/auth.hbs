@@ -106,7 +106,16 @@ function validateForm(event) {
 
   if (!regex.test(passwordInput.value)) {
     event.preventDefault();
-    alert("Your password does not meet the requirements.");
+    const notification = document.getElementById('notification');
+    notification.textContent = "Your password does not meet the requirements.";
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+      notification.classList.add('hide');
+      setTimeout(() => {
+        notification.classList.remove('show', 'hide');
+      }, 500);
+    }, 3000);
   }
 }
 </script>
@@ -434,12 +443,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
       }, 3000);
     }
-  console.log('DOM Content Loaded');
   const container = document.querySelector('.container');
-  console.log('Container:', container);
   if (container) {
     const toggleLinks = document.querySelectorAll('.toggle-form');
-    console.log('Toggle Links:', toggleLinks);
     
     if (toggleLinks.length > 0) {
       toggleLinks.forEach(link => {

@@ -236,8 +236,32 @@
         .btn-visit:hover {
             background-color: #006d87;
         }
-    </style>
 
+        .notification {
+            position: fixed;
+            left: 50%;
+            top: 20px;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1000;
+            min-width: 300px;
+            text-align: center;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.hide {
+            opacity: 0;
+        }
+    </style>
+<div id="notification" class="notification"></div>
 <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px;">
     <h1>Your Communities</h1>
     <div class="community-controls">
@@ -364,7 +388,7 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to join community. Please try again.');
+            showNotification('Failed to join community. Please try again.');
         });
     }
 
@@ -375,8 +399,6 @@
         const name = document.getElementById('communityName').value;
         const description = document.getElementById('communityDescription').value;
         const isPrivate = document.getElementById('isPrivate').checked;
-
-        console.log('Submitting community data:', { name, description, isPrivate });
 
         fetch('/create-community', {
             method: 'POST',
@@ -393,17 +415,16 @@
             return data;
         })
         .then(data => {
-            console.log('Success:', data);
             if (data.accessCode) {
-                alert(`Community created successfully! Access code: ${data.accessCode}`);
+                showNotification(`Community created successfully! Access code: ${data.accessCode}`);
             } else {
-                alert('Community created successfully!');
+                showNotification('Community created successfully!');
             }
             window.location.reload();
         })
         .catch(error => {
             console.error('Error:', error);
-            alert(error.message || 'Failed to create community');
+            showNotification(error.message || 'Failed to create community');
         });
     });
 
@@ -413,11 +434,9 @@
         const accessCode = document.getElementById('accessCode').value.trim();
 
         if (!accessCode) {
-            alert('Please enter an access code');
+            showNotification('Please enter an access code');
             return;
         }
-
-        console.log('Attempting to join with access code:', accessCode);
 
         fetch('/join-private-community', {
             method: 'POST',
@@ -434,13 +453,12 @@
             return data;
         })
         .then(data => {
-            console.log('Success:', data);
-            alert(`Successfully joined ${data.communityName}!`);
+            showNotification(`Successfully joined ${data.communityName}!`);
             window.location.reload();
         })
         .catch(error => {
             console.error('Error:', error);
-            alert(error.message || 'Failed to join community');
+            showNotification(error.message || 'Failed to join community');
         });
     });
     function openCreateModal() {
@@ -465,7 +483,26 @@
             event.target.style.display = "none";
         }
     }
-</script>
 
-</body>
-</html>
+    function showNotification(message, redirect = false) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        
+        if (redirect) {
+            setTimeout(() => {
+                notification.classList.add('hide');
+                setTimeout(() => {
+                    notification.classList.remove('show', 'hide');
+                }, 500);
+            }, 1500); // Show for less time since we're redirecting
+        } else {
+            setTimeout(() => {
+                notification.classList.add('hide');
+                setTimeout(() => {
+                    notification.classList.remove('show', 'hide');
+                }, 500);
+            }, 3000);
+        }
+    }
+</script>

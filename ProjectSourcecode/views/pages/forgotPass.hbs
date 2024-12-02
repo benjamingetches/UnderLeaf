@@ -252,10 +252,10 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('tokenForm').style.display = 'block';
         } else {
           const data = await response.json();
-          alert(data.error || 'Failed to send reset code');
+          showNotification(data.error || 'Failed to send reset code');
         }
       } catch (error) {
-        alert('An error occurred. Please try again.');
+        showNotification('An error occurred. Please try again.');
       }
     });
   }
@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('resetToken').value = token;
         } else {
           const data = await response.json();
-          alert(data.error || 'Invalid or expired reset code');
+          showNotification(data.error || 'Invalid or expired reset code');
         }
       } catch (error) {
         showNotification('An error occurred. Please try again.');

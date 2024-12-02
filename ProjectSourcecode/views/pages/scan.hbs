@@ -116,11 +116,37 @@
         margin-top: 20px;
         display: none;
     }
+
+    .notification {
+        position: fixed;
+        left: 50%;
+        top: 20px;
+        transform: translateX(-50%);
+        padding: 15px 25px;
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        z-index: 1000;
+        min-width: 300px;
+        text-align: center;
+    }
+
+    .notification.show {
+        opacity: 1;
+    }
+
+    .notification.hide {
+        opacity: 0;
+    }
 </style>
+
+<div id="notification" class="notification"></div>
 
 <div class="scan-container">
     <div class="scan-card">
-        <h2 class="mb-4">Scan Mathematical Expression</h2>
+        <h2 class="mb-4">Scan Handwritten Math</h2>
         
         <form id="scanForm">
             <div class="form-group mb-4">
@@ -252,19 +278,15 @@ async function processImageToLatex(base64Image) {
         });
 
         // Add logging here
-        console.log('Response status:', response.status);
         
         if (response.status === 403) {
             const errorData = await response.json();
-            console.log('403 error data:', errorData);
             
             // Show the modal directly here instead of using handleAIError
             const resetDate = new Date(errorData.last_credit_reset);
-            console.log('Reset date:', resetDate);
             
             const nextReset = new Date(resetDate);
             nextReset.setDate(nextReset.getDate() + 7);
-            console.log('Next reset:', nextReset);
             
             const dateString = nextReset.toLocaleString('en-US', {
                 weekday: 'long',
@@ -274,12 +296,10 @@ async function processImageToLatex(base64Image) {
                 minute: 'numeric',
                 hour12: true
             });
-            console.log('Formatted date:', dateString);
             
             const refreshSpan = document.querySelector('#noCreditsModal .refresh-date');
             if (refreshSpan) {
                 refreshSpan.textContent = dateString;
-                console.log('Updated span with:', dateString);
             }
             
             const noCreditsModal = new bootstrap.Modal(document.getElementById('noCreditsModal'));
@@ -341,7 +361,7 @@ async function processAllImages() {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error processing images: ' + error.message);
+            showNotification('Error processing images: ' + error.message);
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = 'Process Images';
@@ -371,14 +391,21 @@ async function processAllImages() {
             const data = await response.json();
             
             if (data.success) {
-                // Redirect to edit the newly created note
-                window.location.href = `/edit-note/${data.noteId}`;
+                // Store the note data in sessionStorage before redirecting
+                sessionStorage.setItem('note_content', processedLatexContent);
+                sessionStorage.setItem('note_title', document.getElementById('noteTitle').value);
+                sessionStorage.setItem('note_id', data.noteId);
+                
+                showNotification('Note saved successfully!', true);
+                setTimeout(() => {
+                    window.location.href = `/editor?loadNote=true`;
+                }, 1500);
             } else {
                 throw new Error(data.error || 'Failed to save note');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error saving note: ' + error.message);
+            showNotification('Error saving note: ' + error.message);
         } finally {
             saveButton.disabled = false;
             saveButton.innerHTML = 'Save Note';
@@ -388,4 +415,25 @@ async function processAllImages() {
     // Event listeners for file inputs
     document.getElementById('imageInput').addEventListener('change', (e) => handleFileSelect(e, 'previewContainer'));
     document.getElementById('additionalImages').addEventListener('change', (e) => handleFileSelect(e, 'modalImagePreviews'));
+    function showNotification(message, redirect = false) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        
+        if (redirect) {
+            setTimeout(() => {
+                notification.classList.add('hide');
+                setTimeout(() => {
+                    notification.classList.remove('show', 'hide');
+                }, 500);
+            }, 1500); // Show for less time since we're redirecting
+        } else {
+            setTimeout(() => {
+                notification.classList.add('hide');
+                setTimeout(() => {
+                    notification.classList.remove('show', 'hide');
+                }, 500);
+            }, 3000);
+        }
+    }
 </script>

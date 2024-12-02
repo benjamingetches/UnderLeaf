@@ -289,8 +289,32 @@ body {
   transition: background-color 0.3s ease;
 }
 
-</style>
+.notification {
+    position: fixed;
+    left: 50%;
+    top: 20px;
+    transform: translateX(-50%);
+    padding: 15px 25px;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    z-index: 1000;
+    min-width: 300px;
+    text-align: center;
+}
 
+.notification.show {
+    opacity: 1;
+}
+
+.notification.hide {
+    opacity: 0;
+}
+
+</style>
+<div id="notification" class="notification"></div>
 <!-- Editor and Preview Containers -->
 <div class="latex-editor-container">
   <!-- Editor Section -->
@@ -515,17 +539,20 @@ body {
 {{#if note}}
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const titleInput = document.getElementById('note-title');
-      const content = unescapeLatex(`{{note.content}}`);
-      
-      titleInput.value = unescapeLatex(`{{note.title}}`);
-      editor.setValue(content); // Set the unescaped content in the editor
-      
-      // Force a refresh of the editor
-      editor.refresh();
-      
-      // Trigger a re-render of the preview
-      renderLaTeX();
+      // Wait for CodeMirror to be initialized
+      setTimeout(() => {
+        const titleInput = document.getElementById('note-title');
+        const content = unescapeLatex(`{{{note.content}}}`); // Note the triple brackets
+        
+        titleInput.value = unescapeLatex(`{{{note.title}}}`); // Note the triple brackets
+        editor.setValue(content);
+        
+        // Force a refresh of the editor
+        editor.refresh();
+        
+        // Trigger a re-render of the preview
+        renderLaTeX();
+      }, 100);
     });
   </script>
 {{/if}}
@@ -544,7 +571,10 @@ body {
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
+      .replace("left\\","left")
+      .replace("right\\","right")
       .replace(/''|&#x27;&#x27;|&#027;&#027;/g, "''");
+
   }
 
   $(function() {
@@ -621,7 +651,7 @@ document.getElementById('save-latex').addEventListener('click', async () => {
   const title = titleInput.value.trim();
 
   if (!title) {
-    alert('Please enter a title for your note.');
+    showNotification('Please enter a title for your note.');
     titleInput.focus();
     return;
   }
@@ -641,12 +671,12 @@ document.getElementById('save-latex').addEventListener('click', async () => {
     });
 
     if (response.ok) {
-      alert('LaTeX content saved successfully!');
+      showNotification('LaTeX content saved successfully!');
     } else {
-      alert('Error saving LaTeX content');
+      showNotification('Error saving LaTeX content');
     }
   } catch (error) {
-    alert('Error occurred: ' + error.message);
+    showNotification('Error occurred: ' + error.message);
   }
 });
 
@@ -676,10 +706,10 @@ document.getElementById('load-notes-btn').addEventListener('click', async () => 
         dropdownMenu.appendChild(listItem);
       });
     } else {
-      alert('Error fetching notes');
+      showNotification('Error fetching notes');
     }
   } catch (error) {
-    alert('Error occurred: ' + error.message);
+    showNotification('Error occurred: ' + error.message);
   }
 });
 
@@ -711,10 +741,10 @@ document.getElementById('notes-dropdown').addEventListener('click', async functi
         // Hide the dropdown menu after selection
         $('.dropdown-toggle').dropdown('hide');
       } else {
-        alert('Error loading note');
+        showNotification('Error loading note');
       }
     } catch (error) {
-      alert('Error occurred: ' + error.message);
+      showNotification('Error occurred: ' + error.message);
     }
   }
 });
@@ -872,7 +902,7 @@ function getSelectedHtml() {
     const title = titleInput.value.trim();
 
     if (!title) {
-      alert('Please enter a title before sharing.');
+      showNotification('Please enter a title before sharing.');
       titleInput.focus();
       return;
     }
@@ -899,7 +929,7 @@ function getSelectedHtml() {
       // Fetch friends list
       const friendsResponse = await fetch('/get-friends-for-sharing');
       const friends = await friendsResponse.json();
-      console.log(friends);
+      //console.log(friends);
 
       // Create and show the sharing modal
       const modalHtml = `
@@ -947,7 +977,7 @@ function getSelectedHtml() {
         const canEdit = document.getElementById('canEdit').checked;
 
         if (!shareWith) {
-          alert('Please select a friend to share with.');
+          showNotification('Please select a friend to share with.');
           return;
         }
 
@@ -984,13 +1014,13 @@ function getSelectedHtml() {
           });
 
           if (shareResponse.ok) {
-            alert('Note shared successfully!');
+            showNotification('Note shared successfully!');
             shareModal.hide();
           } else {
             throw new Error('Failed to share note');
           }
         } catch (error) {
-          alert('Error sharing note: ' + error.message);
+          showNotification('Error sharing note: ' + error.message);
         }
       });
 
@@ -1001,7 +1031,7 @@ function getSelectedHtml() {
       });
 
     } catch (error) {
-      alert('Error: ' + error.message);
+      showNotification('Error: ' + error.message);
     }
   });
 
@@ -1037,11 +1067,11 @@ function getSelectedHtml() {
         editor.setValue(updatedLatex);
         renderLaTeX();
       } else {
-        alert('Error processing your request.');
+        showNotification('Error processing your request.');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('An error occurred while processing your request.');
+      showNotification('An error occurred while processing your request.');
     }
 
     // Clean up
@@ -1078,7 +1108,7 @@ function getSelectedHtml() {
     const instructions = document.getElementById('textInstructions').value.trim();
     
     if (!textInput) {
-      alert('Please enter some text to convert.');
+      showNotification('Please enter some text to convert.');
       return;
     }
     
@@ -1124,7 +1154,7 @@ function getSelectedHtml() {
       
     } catch (error) {
       console.error('Error:', error);
-      alert('Error converting text: ' + error.message);
+      showNotification('Error converting text: ' + error.message);
     } finally {
       // Reset button state
       convertBtn.innerHTML = originalBtnHtml;
@@ -1237,7 +1267,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ... rest of your DOMContentLoaded code ...
 });
-
 // Update the share button click handler
 document.getElementById('share-preview').addEventListener('click', async () => {
   // ... existing share preview code ...
@@ -1260,7 +1289,7 @@ document.getElementById('confirmSaveTemplate').addEventListener('click', async f
     const content = editor.getValue();
 
     if (!title) {
-        alert('Please enter a template title');
+        showNotification('Please enter a template title');
         return;
     }
 
@@ -1281,7 +1310,7 @@ document.getElementById('confirmSaveTemplate').addEventListener('click', async f
         const data = await response.json();
         
         if (data.success) {
-            alert('Template saved successfully!');
+            showNotification('Template saved successfully!');
             const modal = bootstrap.Modal.getInstance(document.getElementById('saveTemplateModal'));
             modal.hide();
         } else {
@@ -1289,7 +1318,46 @@ document.getElementById('confirmSaveTemplate').addEventListener('click', async f
         }
     } catch (error) {
         console.error('Error saving template:', error);
-        alert('Error saving template: ' + error.message);
+        showNotification('Error saving template: ' + error.message);
+    }
+});
+
+// Helper function to show notifications
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.classList.remove('show', 'hide');
+        }, 500);
+    }, 3000);
+}
+
+// Add this right after your existing editor initialization code
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're loading a note from sessionStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('loadNote') === 'true') {
+        const noteContent = sessionStorage.getItem('note_content');
+        const noteTitle = sessionStorage.getItem('note_title');
+        
+        if (noteContent && noteTitle) {
+            // Set the editor content and title
+            editor.setValue(unescapeLatex(noteContent));
+            document.getElementById('note-title').value = unescapeLatex(noteTitle);
+            
+            // Render the preview
+            renderLaTeX();
+            
+            // Clear the sessionStorage
+            sessionStorage.removeItem('note_content');
+            sessionStorage.removeItem('note_title');
+            sessionStorage.removeItem('note_id');
+        }
     }
 });
 </script>
+

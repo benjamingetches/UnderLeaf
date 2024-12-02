@@ -85,7 +85,7 @@ const transporter = nodemailer.createTransport({
 
 
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server
+  host: process.env.DB_HOST, //'dpg-csvpgvilqhvc73bgrnu0-a', // the database server
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -94,22 +94,17 @@ const dbConfig = {
 
 const db = pgp(dbConfig);
 
-// Update this line if it exists, or add it if it doesn't
 app.use(express.static(path.join(__dirname, 'public')));
 
-// test your database
+// test database
 db.connect()
   .then(obj => {
-    console.log('Database connection successful'); // you can view this message in the docker compose logs
-    // console.log the db schema to test the connection
+    console.log('Database connection successful'); 
     obj.done(); // success, release the connection;
   })
   .catch(error => {
-      console.log('Database connection error details:', {
-      message: error.message,
-      code: error.code,
-      errno: error.errno
-  });
+    console.error('Database connection failed');
+
   });
 // *****************************************************
 // <!-- Section 3 : App Settings -->
@@ -184,7 +179,6 @@ app.post('/request-password-reset', async (req, res) => {
     const user = await db.oneOrNone('SELECT username FROM users WHERE email = $1', [email]);
     
     if (!user) {
-      console.log('No user found with email:', email);
       return res.status(404).json({ error: 'No account found with this email' });
     }
 
@@ -221,7 +215,6 @@ app.post('/request-password-reset', async (req, res) => {
           cid: 'underleafLogo'
         }]
       });
-      console.log('Email sent successfully');
       res.json({ message: 'Reset code sent successfully' });
     } catch (emailError) {
       console.error('Email sending error:', emailError);
@@ -298,12 +291,6 @@ app.post('/reset-password', async (req, res) => {
 });
 // Add these before any middleware or routes
 app.use((req, res, next) => {
-    console.log('Incoming request:', {
-        path: req.path,
-        method: req.method,
-        session: req.session,
-        body: req.method === 'POST' ? req.body : undefined
-    });
     next();
 });
 
@@ -442,11 +429,20 @@ app.get('/edit-note/:id', async (req, res) => {
           note.can_edit = false;
       }
 
-      res.render('pages/editor', { user, note });
-  } catch (error) {
+      note.content = note.content || '';
+      note.title = note.title || '';
+  
+      res.render('pages/editor', { 
+        user, 
+        note,
+        helpers: {
+          raw: function(content) { return content; }
+        }
+      });
+    } catch (error) {
       console.error('Error fetching note:', error);
       res.status(500).send('Error fetching note');
-  }
+    }
 });
 
 
@@ -647,9 +643,6 @@ app.post('/create-community', async (req, res) => {
            VALUES ($1, $2, $3, $4, $5) RETURNING community_id`,
           [name, description, isPrivate, accessCode, createdBy]
       );
-
-      console.log('Community created successfully:', result);
-
       // Add creator as a member
       await db.none(
           `INSERT INTO community_memberships (community_id, username) 
@@ -683,15 +676,11 @@ app.post('/join-private-community', async (req, res) => {
   const username = req.session.user.username;
   
   try {
-      console.log('Attempting to join community with access code:', accessCode);
-
       // First, find the community with this access code
       const community = await db.oneOrNone(
           'SELECT * FROM communities WHERE access_code = $1',
           [accessCode]
       );
-
-      console.log('Found community:', community);
 
       if (!community) {
           return res.status(404).json({ 
@@ -1189,12 +1178,15 @@ app.get('/get-note/:id', async (req, res) => {
 
   try {
     const note = await db.one(`
-      SELECT n.title, n.content, n.category, n.username,
-             np.can_edit, np.can_read
-      FROM notes n
-      LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
-      WHERE n.id = $2 
-      AND (n.username = $1 OR np.can_read = true)`,
+          SELECT n.*, 
+                  CASE 
+                    WHEN n.username = $1 THEN true
+                    ELSE np.can_edit
+                  END as can_edit
+          FROM notes n
+          LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
+          WHERE n.id = $2 
+          AND (n.username = $1 OR np.username = $1 AND np.can_read = true)`,
       [user.username, noteId]
     );
     res.json(note);
@@ -1227,6 +1219,14 @@ app.post('/process-selection', async (req, res) => {
 
     **Task**: Modify the LaTeX source code according to the user's request. Only edit the specific section corresponding to the selected HTML content. Do not change any other parts of the document.
 
+    **Important LaTeX.js Limitations**:
+    1. Do not use conditional expressions or plainTeX macros
+    2. Do not use deprecated macros like eqnarray, \\it, \\sl
+    3. Do not use \\raggedleft in the middle of paragraphs
+    4. Do not attempt to load packages with \\usepackage
+    5. Use simple | instead of \\| for absolute value bars
+    6. Wrap all equations in $$ delimiters, not \\[ \\] or $ $
+
     **LaTeX Source Code**:
     ${latexSource}
 
@@ -1237,10 +1237,12 @@ app.post('/process-selection', async (req, res) => {
     ${context}
 
     **Instructions**:
-    - Identify the LaTeX code corresponding to the selected HTML content.
-    - Apply the user's requested changes to that portion of the LaTeX code.
-    - Do not modify any other parts of the document.
-    - Return the entire updated LaTeX source code, formatted exactly as it was sent to you.
+    - Identify the LaTeX code corresponding to the selected HTML content
+    - Apply the user's requested changes to that portion of the LaTeX code
+    - Do not modify any other parts of the document
+    - Ensure all equations use $$ delimiters
+    - Use \\left| and \\right| for absolute value bars, not \\left\\| or \\right\\|
+    - Return the entire updated LaTeX source code, formatted exactly as it was sent to you
 
     **Output**:
     [Provide only the updated LaTeX source code.]`
@@ -1316,20 +1318,17 @@ app.post('/share-note', async (req, res) => {
       });
     }
 
-    // Check if sharing already exists
     const existingShare = await db.oneOrNone(
       'SELECT * FROM note_permissions WHERE note_id = $1 AND username = $2',
       [noteId, shareWith]
     );
 
     if (existingShare) {
-      // Update existing permissions
       await db.none(
         'UPDATE note_permissions SET can_edit = $1, updated_at = CURRENT_TIMESTAMP WHERE note_id = $2 AND username = $3',
         [canEdit, noteId, shareWith]
       );
     } else {
-      // Create new permission
       await db.none(
         'INSERT INTO note_permissions (note_id, username, can_edit, can_read) VALUES ($1, $2, $3, true)',
         [noteId, shareWith, canEdit]
@@ -1382,7 +1381,6 @@ app.get('/friendship-status/:username', async (req, res) => {
   }
 });
 
-// Update the editor route to include friend status
 app.get('/editor', async (req, res) => {
   const user = req.session.user;
   try {
@@ -1472,7 +1470,6 @@ app.get('/notes', async (req, res) => {
       [user.username]
     );
 
-    // Get friend count and pending count for navbar
     const friendCount = await db.one(`
       SELECT COUNT(*) as count
       FROM friends
@@ -1534,7 +1531,6 @@ transporter.verify(function(error, success) {
   }
 });
 
-// Add this helper function at the top of your file
 function unescapeLatex(text) {
     if (!text) return '';
     return text
@@ -1575,7 +1571,6 @@ app.get('/get-note/:id', async (req, res) => {
         res.status(500).send('Error fetching note');
     }
 });
-
 app.get('/templates', async (req, res) => {
   try {
       const user = req.session.user;
@@ -1754,11 +1749,14 @@ app.post('/photo-to-latex', async (req, res) => {
   try {
     const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
     
-    const prompt = `Please convert the uploaded photo to LaTeX format, following these strict requirements:
+    const prompt = `You are an AI assistant that converts handwritten mathematical content into LaTeX format. Please convert the uploaded photo to LaTeX format, following these strict requirements:
 
 1. Return ONLY the LaTeX code, with no additional explanations
 2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
 3. Use this exact document structure unless absolutely necessary to do otherwise:
+4. WHEN WRITING ABSOLUTE VALUES, USE ONLY THE "|" SYMBOL, no slashes.
+
+**DOCUMENT STRUCTURE**:
 
 \\documentclass{article}
 \\usepackage{amsmath}
@@ -1770,7 +1768,15 @@ app.post('/photo-to-latex', async (req, res) => {
 
 4. Preserve all mathematical notation and formatting from the original image
 5. Do not add any comments or explanations - only output valid LaTeX code
-6. Do not include markdown code fences (\`\`\`) or language identifiers in your response`;
+6. Do not include markdown code fences (\`\`\`) or language identifiers in your response
+7. FOLLOW THESE IMPORTANT LATEX.JS LIMITATIONS:
+  **Important LaTeX.js Limitations**:
+  1. Do not use conditional expressions or plainTeX macros
+  2. Do not use deprecated macros like eqnarray, \\it, \\sl
+  3. Do not use \\raggedleft in the middle of paragraphs
+  4. Do not attempt to load packages with \\usepackage
+  5. Use simple | instead of \\| for absolute value bars
+  6. Wrap all equations in $$ delimiters, not \\[ \\] or $ $`;
 
     const response = await openai.createChatCompletion({
       model: "gpt-4o-mini",
@@ -1796,15 +1802,13 @@ app.post('/photo-to-latex', async (req, res) => {
       throw new Error('No content in OpenAI response');
     }
 
-    // Clean up the response
     let latexCode = response.data.choices[0].message.content.trim();
     
-    // Remove markdown code fences and language identifier if present
     latexCode = latexCode.replace(/^```latex\s*/, '');
     latexCode = latexCode.replace(/^```\s*/, '');
     latexCode = latexCode.replace(/\s*```$/, '');
 
-    console.log('Cleaned OpenAI Response:', latexCode);
+    //console.log('Cleaned OpenAI Response:', latexCode);
 
     return res.json({ 
       success: true,
@@ -1898,28 +1902,36 @@ return res.status(500).json({
 // CHRIS
 app.post('/rewrite-text', async (req, res) => {
   const { text, instructions } = req.body;
-  const prompt = `
-  You are an AI assistant that edits English documents based on user instructions.
+  const prompt = `You are an AI assistant that edits English documents based on user instructions.
 
-  **Task**: Modify the English Source code according to the user's request. Only edit the specific section corresponding to the selected HTML content. Do not change any other parts of the document.
+  **Task**: Convert English text into LaTeX format according to the user's instructions.
 
-  **English Text to Modify**:
+  **Important LaTeX.js Limitations**:
+  1. Do not use conditional expressions or plainTeX macros
+  2. Do not use deprecated macros like eqnarray, \\it, \\sl
+  3. Do not use \\raggedleft in the middle of paragraphs
+  4. Do not attempt to load packages with \\usepackage
+  5. Use simple | instead of \\| for absolute value bars
+  6. Wrap all equations in $$ delimiters, not \\[ \\] or $ $
+
+  **English Text to Convert**:
   ${text}
 
   **User's Instructions**:
   ${instructions}
 
   **Instructions**:
-  - Identify the LaTeX code corresponding to the selected English Textcontent.
-  - Apply the user's requested instructions to that portion of English Text.
-  -All mathematical equations need to be wrapped in "$$" on both side of the equation.
-  - Return the entire updated English text, converting it into LaTex.
-  
+  - Convert the English text into valid LaTeX format
+  - All mathematical equations must be wrapped in $$ delimiters
+  - Use \\left| and \\right| for absolute value bars, not \\left\\| or \\right\\|
+  - Ensure the output is compatible with LaTeX.js limitations
+  - Do not include \\begin{document} or \\end{document} tags
+  - Do not include any preamble or package loading
 
   **Output**:
-  [Provide only the updated LaTeX code.]`
+  [Provide only the LaTeX code.]`
     try {
-      console.log(prompt)
+      //console.log(prompt)
       const response = await openai.createChatCompletion({
         model: 'gpt-3.5-turbo',
         messages: [
@@ -1936,3 +1948,4 @@ app.post('/rewrite-text', async (req, res) => {
       res.status(500).json({ error: 'Failed to process the request.' });
     }
 });
+

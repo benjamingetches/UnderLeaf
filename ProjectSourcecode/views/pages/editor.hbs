@@ -7,12 +7,9 @@
 
 <!-- CodeMirror CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
-<!-- Optional: Theme for CodeMirror -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-<!-- Bootstrap JS Bundle (includes Popper) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
@@ -27,7 +24,6 @@
   box-sizing: border-box;
 }
 
-/* Editor Header Container Styling */
 .editor-header-container {
   display: flex;
   justify-content: space-between;
@@ -35,21 +31,18 @@
   margin-bottom: 10px;
 }
 
-/* Editor Header Styling */
 .editor-header {
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 0;
 }
 
-/* Editor Buttons Styling */
 .editor-buttons {
   display: flex;
   gap: 5px;
   align-items: center;
 }
 
-/* Adjust margins for the title input */
 #note-title {
   margin-bottom: 10px;
   padding: 8px;
@@ -57,10 +50,6 @@
   border: 1px solid #ccc;
   border-radius: 4px;
 }
-
-
-/* Remove bottom margin from editor-header to prevent extra space */
-
 .preview-header-container {
   display: flex;
   justify-content: space-between;
@@ -141,7 +130,6 @@ body {
     font-family: 'Roboto', sans-serif;
   }
 
-/* Load Notes Button and Dropdown Styling */
 .load-notes-container {
   display: flex;
   align-items: center;
@@ -149,7 +137,6 @@ body {
   gap: 10px;
 }
 
-/* Editor Styling */
 .editor {
   width: 50%;
   display: flex;
@@ -161,7 +148,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* CodeMirror Customization */
+/* custom CodeMirror */
 .CodeMirror {
   flex: 1;
   height: 100%;
@@ -169,7 +156,6 @@ body {
   border-radius: 4px;
 }
 
-/* Preview Styling */
 .preview-container {
   width: 50%;
   border: 1px solid #ddd;
@@ -182,7 +168,6 @@ body {
 
 
 
-/* Responsive Adjustments */
 @media (max-width: 768px) {
   .latex-editor-container {
     flex-direction: column;
@@ -192,7 +177,6 @@ body {
   }
 }
 
-/* Modal Styles */
 .modal-content {
   border-radius: 8px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
@@ -250,7 +234,6 @@ body {
   margin-right: 8px;
 }
 
-/* Add these new styles */
 .highlighted-selection {
   background-color: rgba(144, 238, 144, 0.3); /* Soft lime green */
   transition: background-color 0.3s ease;
@@ -272,18 +255,17 @@ body {
   font-size: 1.2em;
 }
 
-/* Update modal styles */
 #contextModal .modal-dialog {
   position: absolute;
   margin: 0;
   top: 50%;
-  left: 20px; /* Distance from left edge */
+  left: 20px; 
   transform: translateY(-50%);
-  width: calc(50% - 40px); /* Match editor width, accounting for padding */
+  width: calc(50% - 40px); 
   max-width: none;
 }
 
-/* Update highlighting styles */
+
 .preview-highlight {
   background-color: rgba(144, 238, 144, 0.3);
   transition: background-color 0.3s ease;
@@ -315,17 +297,11 @@ body {
 
 </style>
 <div id="notification" class="notification"></div>
-<!-- Editor and Preview Containers -->
 <div class="latex-editor-container">
-  <!-- Editor Section -->
-  <!-- Editor Section -->
   <div class="editor">
-    <!-- Editor Header Container -->
     <div class="editor-header-container">
         <div class="editor-header">LaTeX Editor</div>
-        <!-- Buttons Container -->
         <div class="editor-buttons">
-        <!-- Load Notes Button and Dropdown -->
         <div class="dropdown">
             <button
             id="load-notes-btn"
@@ -337,10 +313,9 @@ body {
             Load Notes
             </button>
             <ul id="notes-dropdown" class="dropdown-menu" aria-labelledby="load-notes-btn">
-            <!-- Dynamically populated list items -->
+              <!-- populated via JS/API -->
             </ul>
         </div>
-        <!-- New Note Button -->
         <div class="dropdown">
           <button 
             id="new-note-btn" 
@@ -399,12 +374,11 @@ body {
       </div>
     </div>
     <div id="latex-preview" class="preview">
-      <!-- Rendered HTML will appear here -->
+      <!-- Rendered HTML here -->
     </div>
   </div>
 </div>
 
-<!-- Replace the existing modal with this updated version -->
 <div class="modal fade" id="contextModal" tabindex="-1" aria-labelledby="contextModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -449,7 +423,6 @@ body {
   </div>
 </div>
 
-<!-- Add this modal HTML right after the existing contextModal div -->
 <div class="modal fade" id="textToLatexModal" tabindex="-1" aria-labelledby="textToLatexModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -493,7 +466,6 @@ body {
   </div>
 </div>
 
-<!-- Add this modal after your existing modals -->
 <div class="modal fade" id="saveTemplateModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -529,15 +501,14 @@ body {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
 <!-- CodeMirror LaTeX Mode -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/stex/stex.min.js"></script>
-<!-- Optional: CodeMirror Addons (e.g., line numbers, bracket matching) -->
+<!-- CodeMirror Addons (e.g., line numbers, bracket matching) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
-
 <!-- LaTeX.js -->
 <script src="https://cdn.jsdelivr.net/npm/latex.js/dist/latex.js"></script>
 
 {{#if note}}
-  <script>
+  <script> // when loading note from elsewhere
     document.addEventListener('DOMContentLoaded', function() {
       // Wait for CodeMirror to be initialized
       setTimeout(() => {
@@ -545,12 +516,8 @@ body {
         const content = unescapeLatex(`{{{note.content}}}`); // Note the triple brackets
         
         titleInput.value = unescapeLatex(`{{{note.title}}}`); // Note the triple brackets
-        editor.setValue(content);
-        
-        // Force a refresh of the editor
-        editor.refresh();
-        
-        // Trigger a re-render of the preview
+        editor.setValue(content); // Force a refresh of the editor
+        editor.refresh();// Trigger a re-render of the preview
         renderLaTeX();
       }, 100);
     });
@@ -559,7 +526,7 @@ body {
 
 <!-- jQuery UI for resizable functionality -->
 <script>
-  function unescapeLatex(text) {
+  function unescapeLatex(text) { // this function is critical; add any typical latex errors from passing thru api here
     if (!text) return '';
     return text
       .replace(/\\'/g, "'")    // Unescape single quotes
@@ -580,7 +547,7 @@ body {
   $(function() {
     // Make the editor resizable
     $(".editor").resizable({
-      handles: 'e', // Resizable from the east side (right side)
+      handles: 'e', // Resizable from the (right side)
       resize: function(event, ui) {
         // Adjust the width of the preview container as the editor is resized
         let containerWidth = $(".latex-editor-container").width();
@@ -593,14 +560,14 @@ body {
   // Initialize 
   const editor = CodeMirror.fromTextArea(document.getElementById('latex-editor'), {
     mode: 'stex',
-    theme: 'monokai', // Optional: change theme as desired
+    theme: 'monokai', 
     lineNumbers: true,
     lineWrapping: true,
     autoCloseBrackets: true,
     matchBrackets: true,
   });
 
-  // Function to debounce rapid function calls
+  // Function to debounce rapid function calls !critical
   function debounce(func, wait) {
     let timeout;
     return function(...args) {
@@ -612,23 +579,18 @@ body {
   // Function to render LaTeX to HTML
   function renderLaTeX() {
     const latexContent = editor.getValue();
-    
-    // Clear previous content
     const preview = document.getElementById('latex-preview');
     preview.innerHTML = '';
-
     try {
       // Initialize LaTeX.js generator
       const generator = new latexjs.HtmlGenerator({
         hyphenate: false,
       });
 
-      // Parse LaTeX content (already unescaped)
+      // Parse LaTeX content
       const documentObj = latexjs.parse(latexContent, { generator: generator });
-
       // Append styles and scripts
       preview.appendChild(generator.stylesAndScripts("https://cdn.jsdelivr.net/npm/latex.js/dist/"));
-
       // Append the rendered LaTeX
       preview.appendChild(generator.domFragment());
     } catch (error) {
@@ -636,13 +598,12 @@ body {
     }
   }
 
-  // Debounced version to prevent excessive rendering
+  // Debounced to prevent excessive rendering
   const debouncedRender = debounce(renderLaTeX, 500);
 
-  // Initial rendering
   renderLaTeX();
 
-  // Set up event listener for changes in the editor
+  //event listener for changes in the editor
   editor.on('change', debouncedRender);
 
 document.getElementById('save-latex').addEventListener('click', async () => {
@@ -754,7 +715,7 @@ document.getElementById('new-blank').addEventListener('click', () => {
   document.getElementById('note-title').value = '';
   // Clear the editor content
   editor.setValue('');
-  // Optionally re-render the preview
+  // re-render the preview
   renderLaTeX();
 });
 
@@ -804,8 +765,6 @@ function getSelectedHtml() {
 
   function highlightSelection(range) {
     clearHighlight(); // Clear any existing highlights
-    
-    // Create a document fragment with the highlighted content
     const fragment = range.cloneContents();
     const wrapper = document.createElement('span');
     wrapper.classList.add('preview-highlight');
@@ -851,7 +810,6 @@ function getSelectedHtml() {
   preview.addEventListener('mouseup', onSelectionChange);
   preview.addEventListener('keyup', onSelectionChange);
 
-  // Update the AI edit button click handler
   aiEditBtn.addEventListener('click', () => {
     if (isTextSelected) {
       const contextModal = new bootstrap.Modal(document.getElementById('contextModal'));
@@ -877,16 +835,12 @@ function getSelectedHtml() {
     
     // Create a Blob containing the LaTeX content
     const blob = new Blob([latexContent], { type: 'text/plain' });
-    
     // Create a temporary URL for the Blob
     const url = window.URL.createObjectURL(blob);
-    
     // Create a temporary link element
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = fileName;
-    
-    // Append the link to the document, click it, and remove it
     document.body.appendChild(downloadLink);
     downloadLink.click();
     
@@ -1034,13 +988,7 @@ function getSelectedHtml() {
       showNotification('Error: ' + error.message);
     }
   });
-
-
-  //TODO: add event listener for the submitTextToTex button CHRIS
-  
-
-
-  // Event handler for the context modal submission CHRIS
+  // Event handler for the context modal submission 
   document.getElementById('submitContext').addEventListener('click', async () => {
     const latexSource = editor.getValue();
     const context = document.getElementById('contextInput').value.trim();
@@ -1102,7 +1050,6 @@ function getSelectedHtml() {
     renderLaTeX();
   });
 
-  // Replace the existing convertToLatex event listener with this updated version
   document.getElementById('convertToLatex').addEventListener('click', async () => {
     const textInput = document.getElementById('textInput').value.trim();
     const instructions = document.getElementById('textInstructions').value.trim();
@@ -1112,7 +1059,6 @@ function getSelectedHtml() {
       return;
     }
     
-    // Show loading state
     const convertBtn = document.getElementById('convertToLatex');
     const originalBtnHtml = convertBtn.innerHTML;
     convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Converting...';
@@ -1170,7 +1116,7 @@ function getSelectedHtml() {
 
 //ADDED BELOW TO DEBUG DROPDOWN BUTTON
 // Manually initialize the Bootstrap dropdowns
- document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     var loadNotesBtn = new bootstrap.Dropdown(document.getElementById('load-notes-btn'));
     var newNoteBtn = new bootstrap.Dropdown(document.getElementById('new-note-btn'));
 
@@ -1264,14 +1210,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
-
-  // ... rest of your DOMContentLoaded code ...
 });
-// Update the share button click handler
 document.getElementById('share-preview').addEventListener('click', async () => {
-  // ... existing share preview code ...
-
-  // Update the modal cleanup
   document.getElementById('shareModal').addEventListener('hidden.bs.modal', function () {
     cleanupModal('shareModal');
     this.remove();
@@ -1336,7 +1276,6 @@ function showNotification(message) {
     }, 3000);
 }
 
-// Add this right after your existing editor initialization code
 document.addEventListener('DOMContentLoaded', function() {
     // Check if we're loading a note from sessionStorage
     const urlParams = new URLSearchParams(window.location.search);

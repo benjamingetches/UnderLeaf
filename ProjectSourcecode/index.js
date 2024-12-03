@@ -12,7 +12,7 @@ const pgp = require('pg-promise')(); // To connect to the Postgres DB from the n
 const bodyParser = require('body-parser');
 const session = require('express-session'); // To set the session object. To store or access session data, use the `req.session`, which is (generally) serialized as JSON by the store.
 const bcrypt = require('bcryptjs'); //  To hash passwords
-const axios = require('axios'); // To make HTTP requests from our server. We'll learn more about it in Part C.
+const axios = require('axios'); // To make HTTP requests from our server. 
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
@@ -69,8 +69,7 @@ const hbs = handlebars.create({
   }
 });
 
-
-
+// email transporter
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
@@ -83,7 +82,7 @@ const transporter = nodemailer.createTransport({
 });
 
 
-
+// sql config
 const dbConfig = {
   host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server process.env.DB_HOST,//
   port: 5432, // the database port
@@ -133,7 +132,7 @@ app.use(
 );
 
 const configuration = new Configuration({
-  apiKey: process.env.API_KEY, // Ensure you secure this key
+  apiKey: process.env.API_KEY, // secure this key
 });
 const openai = new OpenAIApi(configuration);
 
@@ -342,7 +341,6 @@ const auth = (req, res, next) => {
 // Authentication middleware
 app.use(auth);
 
-// Then define your routes
 app.get('/', (req, res) => {
     if (req.session.user) {
         return res.redirect('/editor');
@@ -474,40 +472,6 @@ app.get('/edit-note/:id', async (req, res) => {
       res.status(500).send('Error fetching note');
     }
 });
-
-
-
-// app.get('/notes', async (req, res) => {
-//     const user = req.session.user;
-//     try {
-//         const notes = await db.any(`
-//             SELECT DISTINCT n.id, n.title, n.username, 
-//                    CASE 
-//                      WHEN n.username = $1 THEN true
-//                      ELSE np.can_edit
-//                    END as can_edit,
-//                    CASE 
-//                      WHEN n.username = $1 THEN 'Owner'
-//                      ELSE 'Shared'
-//                    END as access_type,
-//                    CASE 
-//                      WHEN n.username = $1 THEN true
-//                      ELSE np.can_read
-//                    END as can_read
-//             FROM notes n
-//             LEFT JOIN note_permissions np ON n.id = np.note_id AND np.username = $1
-//             WHERE n.username = $1 
-//             OR (np.username = $1 AND np.can_read = true)
-//             ORDER BY n.title`, 
-//             [user.username]
-//         );
-//         console.log('Notes found:', notes); // Add this for debugging
-//         res.render('pages/notes', { user, notes });
-//     } catch (error) {
-//         console.error('Error fetching notes:', error);
-//         res.status(500).send('Error fetching notes');
-//     }
-// });
 
 app.get('/notes', async (req, res) => {
   const user = req.session.user;
@@ -653,7 +617,7 @@ app.post('/leave-community/:id', async (req, res) => {
 });
 
 
-
+// create community
 app.post('/create-community', async (req, res) => {
   if (!req.session.user) {
       return res.status(401).json({ success: false, error: "Unauthorized: Please log in to create a community." });
@@ -797,8 +761,7 @@ app.get('/community/:id', async (req, res) => {
       return res.status(404).send("Community not found.");
     }
 
-    // Get members list
-// Get members list with admin status
+
 const members = await db.any(
   `SELECT u.username,
           CASE WHEN c.created_by = u.username THEN true ELSE false END as is_admin
@@ -1061,7 +1024,7 @@ app.delete('/delete-note/:id', async (req, res) => {
             });
         }
 
-        // Delete note permissions first (due to foreign key constraint)
+        // Delete note permissions (due to foreign key constraint)
         await db.none('DELETE FROM note_permissions WHERE note_id = $1', [noteId]);
         // Then delete the note
         await db.none('DELETE FROM notes WHERE id = $1 AND username = $2', [noteId, user.username]);
@@ -1231,16 +1194,7 @@ app.get('/scan', (req, res) => {
   res.render('pages/scan', { user });
 });
 
-// TODO: Implement image processing logic using process_to_lines.py
-// app.post('/process-scan', async (req, res) => {
-//   try {
-//       // TODO: Implement image processing logic using process_to_lines.py
-      //res.json({ success: true, message: 'Image processed successfully' });
-  //} catch (error) {
-      //console.error('Error processing image:', error);
-     // res.status(500).json({ success: false, message: 'Error processing image' });
-  //}
-//});
+
 // Route to hit GPT3.5 turbo API
 app.post('/process-selection', async (req, res) => {
   const { selectedHtml, latexSource, context } = req.body;
@@ -1449,7 +1403,6 @@ app.post('/change-password', async (req, res) => {
   try {
     // Fetch the user from the database
     const dbUser = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [user.username]);
-
     // Verify the old password
     const passwordValid = await bcrypt.compare(oldPassword, dbUser.password);
     if (!passwordValid) {
@@ -1527,12 +1480,6 @@ app.get('/notes', async (req, res) => {
   }
 });
 
-// forgot pass
-
-
-
-
-// Verify reset token
 
 async function cleanupExpiredTokens() {
   try {
@@ -1577,7 +1524,6 @@ function unescapeLatex(text) {
       .replace(/&gt;/g, '>');
 }
 
-// Then update your get-note route
 app.get('/get-note/:id', async (req, res) => {
     const noteId = req.params.id;
     const user = req.session.user;
@@ -1771,83 +1717,6 @@ app.post('/share-template', async (req, res) => {
   }
 });
 
-
-
-
-/*app.post('/photo-to-latex', async (req, res) => {
-  const { photo } = req.body;
-  
-  try {
-    // Convert base64 image data to proper format
-    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
-    
-    const prompt = `Please convert the uploaded photo to LaTeX format, following these strict requirements:
-
-1. Return ONLY the LaTeX code, with no additional explanations
-2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
-3. Use this exact document structure unless absolutely necessary to do otherwise:
-
-\\documentclass{article}
-\\usepackage{amsmath}
-\\usepackage{amsfonts}
-
-\\begin{document}
-[CONVERTED CONTENT GOES HERE]
-\\end{document}
-
-4. Preserve all mathematical notation and formatting from the original image
-5. Do not add any comments or explanations - only output valid LaTeX code, beginning with \\documentclass and ending with \\end{document}
-6. UNDER NO CIRCUMSTANCES should your reponse begin with anything other than \\documentclass and \\begin{document}`
-
-
-const response = await openai.createChatCompletion({
-  model: "gpt-4o-mini",
-  messages: [
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:image/jpeg;base64,${base64Image}`
-          }
-        }
-      ]
-    }
-  ],
-  max_tokens: 4096, // Increased token limit
-  temperature: 0.3  // Lower temperature for more consistent output
-});
-
-if (!response.data?.choices?.[0]?.message?.content) {
-  throw new Error('No content in OpenAI response');
-}
-
-const latexCode = response.data.choices[0].message.content.trim();
-
-// Log the response for debugging
-console.log('OpenAI Response:', latexCode);
-
-// Send back the LaTeX code
-return res.json({ 
-  success: true,
-  latex: latexCode 
-});
-
-} catch (error) {
-console.error('Error processing image:', error);
-
-// Send a more detailed error response
-return res.status(500).json({ 
-  success: false,
-  error: 'Failed to process image',
-  details: error.message,
-  ...(error.response?.data && { apiError: error.response.data })
-});
-}
-});*/
-// CHRIS
 app.post('/rewrite-text', async (req, res) => {
   const { text, instructions } = req.body;
   const prompt = `You are an AI assistant that edits English documents based on user instructions.

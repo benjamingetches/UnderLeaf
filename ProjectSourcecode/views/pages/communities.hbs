@@ -1,5 +1,4 @@
     <style>
-        /* Basic styling */
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #f5f5f5;
@@ -292,10 +291,7 @@
     {{/if}}
 </div>
 
-<!-- Sidebar Toggle Button -->
 
-
-<!-- Public Communities Box -->
 <div class="public-communities-box">
     <h2>Public Communities You Can Join</h2>
     {{#each publicCommunities}}
@@ -325,7 +321,6 @@
     </div>
 </div>
 
-<!-- Join Community Modal -->
 <div id="join-modal" class="modal-overlay">
     <div class="modal-content">
         <h2>Join Private Community</h2>
@@ -355,7 +350,7 @@
             document.removeEventListener("click", closeSidebarOnOutsideClick);
         }
     }
-
+    // listener for closing sidebar on outside click
     function closeSidebarOnOutsideClick(event) {
         const sidebar = document.getElementById("sidebar");
         const toggleButton = document.getElementById("toggleSidebarBtn");
@@ -370,7 +365,7 @@
     function visitCommunity(communityId) {
         window.location.href = `/community/${communityId}`;
     }
-
+    // hit API to join public community
     function joinPublicCommunity(communityId) {
         fetch(`/join-community/${communityId}`, {
             method: 'POST',
@@ -392,8 +387,6 @@
         });
     }
 
-    // Modal controls for Create and Join Community (remains the same)
-    // Create Community Form Handler
     document.getElementById('createCommunityForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const name = document.getElementById('communityName').value;
@@ -496,7 +489,7 @@
                 setTimeout(() => {
                     notification.classList.remove('show', 'hide');
                 }, 500);
-            }, 1500); // Show for less time since we're redirecting
+            }, 1500);
         } else {
             setTimeout(() => {
                 notification.classList.add('hide');

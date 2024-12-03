@@ -329,7 +329,7 @@
 <div id="join-modal" class="modal-overlay">
     <div class="modal-content">
         <h2>Join Private Community</h2>
-        <form id="joinCommunityForm">
+        <form id="joinCommunityForm" onsubmit="handleJoinSubmit(event)">
             <input type="text" id="accessCode" placeholder="Enter Community Code" required>
             <div class="button-group">
                 <button type="submit" class="btn-submit">Join</button>
@@ -429,8 +429,8 @@
     });
 
     // Join Community Form Handler
-    document.getElementById('joinCommunityForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+    async function handleJoinSubmit(event) {
+        event.preventDefault();
         const accessCode = document.getElementById('accessCode').value.trim();
 
         if (!accessCode) {
@@ -438,29 +438,30 @@
             return;
         }
 
-        fetch('/join-private-community', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ accessCode })
-        })
-        .then(async response => {
+        try {
+            const response = await fetch('/join-private-community', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ accessCode })
+            });
+
             const data = await response.json();
+            
             if (!response.ok) {
                 throw new Error(data.error || data.details || 'Failed to join community');
             }
-            return data;
-        })
-        .then(data => {
+
             showNotification(`Successfully joined ${data.communityName}!`);
-            window.location.reload();
-        })
-        .catch(error => {
+            closeJoinModal();
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
             console.error('Error:', error);
             showNotification(error.message || 'Failed to join community');
-        });
-    });
+        }
+    }
+
     function openCreateModal() {
         document.getElementById("create-modal").style.display = "flex";
     }

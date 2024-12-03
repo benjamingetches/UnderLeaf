@@ -9,6 +9,17 @@
             {{/if}}
             <div class="stats">
                 <span class="member-count">{{community.member_count}} members</span>
+                {{#if isAdmin}}
+                    {{#if community.is_private}}
+                        <div class="access-code-container">
+                            <span class="access-code-label">Access Code:</span>
+                            <span class="access-code">{{community.access_code}}</span>
+                            <button class="btn btn-secondary copy-btn" onclick="copyAccessCode('{{community.access_code}}')">
+                                Copy Code
+                            </button>
+                        </div>
+                    {{/if}}
+                {{/if}}
             </div>
         </div>
 
@@ -149,10 +160,70 @@
     }
 
     .admin-badge {
-        background: #007bff;
+        background: #73cf73;
         color: white;
         padding: 2px 6px;
         border-radius: 3px;
         font-size: 0.8em;
     }
+
+    .access-code-container {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .access-code-label {
+        font-weight: bold;
+        color: #666;
+    }
+
+    .access-code {
+        font-family: monospace;
+        background-color: #fff;
+        padding: 4px 8px;
+        border-radius: 3px;
+        border: 1px solid #ddd;
+    }
+
+    .copy-btn {
+        padding: 4px 8px;
+        font-size: 0.9em;
+    }
 </style>
+
+<script>
+function copyAccessCode(code) {
+    navigator.clipboard.writeText(code)
+        .then(() => {
+            // Create a temporary notification
+            const notification = document.createElement('div');
+            notification.textContent = 'Access code copied!';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                z-index: 1000;
+            `;
+            document.body.appendChild(notification);
+
+            // Remove the notification after 2 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('Failed to copy access code:', err);
+        });
+}
+</script>

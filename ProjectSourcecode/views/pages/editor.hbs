@@ -571,8 +571,8 @@ body {
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .replace("left\\","left")
-      .replace("right\\","right")
+      .replace(/left\\{1,2}/g, "left")    
+      .replace(/right\\{1,2}/g, "right") 
       .replace(/''|&#x27;&#x27;|&#027;&#027;/g, "''");
 
   }

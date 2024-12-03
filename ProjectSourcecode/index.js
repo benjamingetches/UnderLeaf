@@ -290,8 +290,38 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 // Add these before any middleware or routes
-app.use((req, res, next) => {
-    next();
+app.use(async (req, res, next) => {
+  if (req.session.user) {
+      try {
+          // Check if user needs credit refresh
+          const user = await db.oneOrNone(`
+              SELECT last_credit_reset 
+              FROM users 
+              WHERE username = $1 
+              AND NOT is_premium 
+              AND last_credit_reset < NOW() - INTERVAL '7 days'`,
+              [req.session.user.username]
+          );
+          
+          if (user) {
+              // Reset credits
+              await db.none(`
+                  UPDATE users 
+                  SET ai_credits = 10, 
+                      last_credit_reset = NOW() 
+                  WHERE username = $1`,
+                  [req.session.user.username]
+              );
+              
+              // Update session
+              req.session.user.ai_credits = 10;
+              await req.session.save();
+          }
+      } catch (error) {
+          console.error('Error checking credit refresh:', error);
+      }
+  }
+  next();
 });
 
 const auth = (req, res, next) => {
@@ -1743,88 +1773,6 @@ app.post('/share-template', async (req, res) => {
 
 
 
-app.post('/photo-to-latex', async (req, res) => {
-  const { photo } = req.body;
-  
-  try {
-    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
-    
-    const prompt = `You are an AI assistant that converts handwritten mathematical content into LaTeX format. Please convert the uploaded photo to LaTeX format, following these strict requirements:
-
-1. Return ONLY the LaTeX code, with no additional explanations
-2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
-3. Use this exact document structure unless absolutely necessary to do otherwise:
-4. WHEN WRITING ABSOLUTE VALUES, USE ONLY THE "|" SYMBOL, no slashes.
-
-**DOCUMENT STRUCTURE**:
-
-\\documentclass{article}
-\\usepackage{amsmath}
-\\usepackage{amsfonts}
-
-\\begin{document}
-[CONVERTED CONTENT GOES HERE]
-\\end{document}
-
-4. Preserve all mathematical notation and formatting from the original image
-5. Do not add any comments or explanations - only output valid LaTeX code
-6. Do not include markdown code fences (\`\`\`) or language identifiers in your response
-7. FOLLOW THESE IMPORTANT LATEX.JS LIMITATIONS:
-  **Important LaTeX.js Limitations**:
-  1. Do not use conditional expressions or plainTeX macros
-  2. Do not use deprecated macros like eqnarray, \\it, \\sl
-  3. Do not use \\raggedleft in the middle of paragraphs
-  4. Do not attempt to load packages with \\usepackage
-  5. Use simple | instead of \\| for absolute value bars
-  6. Wrap all equations in $$ delimiters, not \\[ \\] or $ $`;
-
-    const response = await openai.createChatCompletion({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }
-      ],
-      max_tokens: 4096,
-      temperature: 0.3
-    });
-
-    if (!response.data?.choices?.[0]?.message?.content) {
-      throw new Error('No content in OpenAI response');
-    }
-
-    let latexCode = response.data.choices[0].message.content.trim();
-    
-    latexCode = latexCode.replace(/^```latex\s*/, '');
-    latexCode = latexCode.replace(/^```\s*/, '');
-    latexCode = latexCode.replace(/\s*```$/, '');
-
-    //console.log('Cleaned OpenAI Response:', latexCode);
-
-    return res.json({ 
-      success: true,
-      latex: latexCode 
-    });
-
-  } catch (error) {
-    console.error('Error processing image:', error);
-    return res.status(500).json({ 
-      success: false,
-      error: 'Failed to process image',
-      details: error.message,
-      ...(error.response?.data && { apiError: error.response.data })
-    });
-  }
-});
 
 /*app.post('/photo-to-latex', async (req, res) => {
   const { photo } = req.body;
@@ -1949,3 +1897,183 @@ app.post('/rewrite-text', async (req, res) => {
     }
 });
 
+
+async function refreshWeeklyCredits() {
+  try {
+      // Get all non-premium users whose credits were last reset more than 7 days ago
+      const usersToReset = await db.any(`
+          SELECT username 
+          FROM users 
+          WHERE NOT is_premium 
+          AND (last_credit_reset IS NULL OR last_credit_reset < NOW() - INTERVAL '7 days')`
+      );
+      if (usersToReset.length > 0) {
+          // Reset credits and update last_credit_reset timestamp
+          await db.none(`
+              UPDATE users 
+              SET ai_credits = 10, 
+                  last_credit_reset = NOW() 
+              WHERE username = ANY($1)`, 
+              [usersToReset.map(u => u.username)]
+          );
+          
+          console.log(`Reset credits for ${usersToReset.length} users`);
+      }
+  } catch (error) {
+      console.error('Error refreshing weekly credits:', error);
+  }
+}
+const checkAICredits = async (req, res, next) => {
+  if (!req.session.user) return next();
+  
+  try {
+      const user = await db.one('SELECT is_premium, ai_credits, last_credit_reset FROM users WHERE username = $1', 
+          [req.session.user.username]);
+      
+      if (user.is_premium) return next();
+      
+      if (user.ai_credits <= 0) {
+        console.log('Sending 403 with reset:', user.last_credit_reset);
+        return res.status(403).json({
+            error: 'No AI credits remaining',
+            message: 'Please upgrade to premium or wait for your credits to reset',
+            last_credit_reset: user.last_credit_reset
+        });
+      }
+      
+      // Deduct one credit and ensure last_credit_reset is set
+      await db.none(`
+          UPDATE users 
+          SET ai_credits = ai_credits - 1,
+              last_credit_reset = COALESCE(last_credit_reset, CURRENT_TIMESTAMP)
+          WHERE username = $1`, 
+          [req.session.user.username]
+      );
+      
+      // Update the session with new credit count
+      req.session.user.ai_credits = user.ai_credits - 1;
+      await req.session.save();
+      
+      next();
+  } catch (error) {
+      console.error('Error checking AI credits:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+app.get('/get-user-credits', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: 'Not logged in' });
+  }
+  
+  try {
+      const user = await db.one(`
+          SELECT username, ai_credits, is_premium, last_credit_reset,
+                 COALESCE(last_credit_reset, CURRENT_TIMESTAMP) as effective_reset
+          FROM users 
+          WHERE username = $1`, 
+          [req.session.user.username]
+      );
+      
+      console.log('User credit data from DB:', user); // Debug log
+      
+      // Update session with latest credits
+      req.session.user.ai_credits = user.ai_credits;
+      req.session.user.is_premium = user.is_premium;
+      await req.session.save();
+      
+      res.json({
+          ai_credits: user.ai_credits,
+          is_premium: user.is_premium,
+          last_credit_reset: user.effective_reset // Use the coalesced value
+      });
+  } catch (error) {
+      console.error('Error fetching credits:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+app.post('/photo-to-latex', checkAICredits, async (req, res) => {
+  const { photo } = req.body;
+  
+  try {
+    const base64Image = photo.replace(/^data:image\/\w+;base64,/, '');
+    
+    const prompt = `You are an AI assistant that converts handwritten mathematical content into LaTeX format. Please convert the uploaded photo to LaTeX format, following these strict requirements:
+
+1. Return ONLY the LaTeX code, with no additional explanations
+2. ALL mathematical equations must be wrapped in '$$' delimiters (not \[ \] or $ $)
+3. Use this exact document structure unless absolutely necessary to do otherwise:
+4. WHEN WRITING ABSOLUTE VALUES, USE ONLY THE "|" SYMBOL, no slashes.
+
+**DOCUMENT STRUCTURE**:
+
+\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+
+\\begin{document}
+[CONVERTED CONTENT GOES HERE]
+\\end{document}
+
+4. Preserve all mathematical notation and formatting from the original image
+5. Do not add any comments or explanations - only output valid LaTeX code
+6. Do not include markdown code fences (\`\`\`) or language identifiers in your response
+7. FOLLOW THESE IMPORTANT LATEX.JS LIMITATIONS:
+  **Important LaTeX.js Limitations**:
+  1. Do not use conditional expressions or plainTeX macros
+  2. Do not use deprecated macros like eqnarray, \\it, \\sl
+  3. Do not use \\raggedleft in the middle of paragraphs
+  4. Do not attempt to load packages with \\usepackage
+  5. Use simple | instead of \\| for absolute value bars
+  6. Wrap all equations in $$ delimiters, not \\[ \\] or $ $`;
+
+    const response = await openai.createChatCompletion({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4096,
+      temperature: 0.3
+    });
+
+    if (!response.data?.choices?.[0]?.message?.content) {
+      throw new Error('No content in OpenAI response');
+    }
+
+    let latexCode = response.data.choices[0].message.content.trim();
+    
+    latexCode = latexCode.replace(/^```latex\s*/, '');
+    latexCode = latexCode.replace(/^```\s*/, '');
+    latexCode = latexCode.replace(/\s*```$/, '');
+
+    //console.log('Cleaned OpenAI Response:', latexCode);
+
+    return res.json({ 
+      success: true,
+      latex: latexCode 
+    });
+
+  } catch (error) {
+    console.error('Error processing image:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to process image',
+      details: error.message,
+      ...(error.response?.data && { apiError: error.response.data })
+    });
+  }
+});

@@ -1054,7 +1054,6 @@ async function loadUserNotes() {
             <div class="note-share-item">
                 <div class="note-info">
                     <h4>${note.title}</h4>
-                    <p class="note-preview">${note.content ? note.content.substring(0, 100) + '...' : 'No content'}</p>
                 </div>
                 <div class="note-share-controls">
                     <button onclick="shareNote(${note.id})" class="btn btn-primary">Share</button>

@@ -84,7 +84,7 @@ const transporter = nodemailer.createTransport({
 
 // sql config
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server process.env.DB_HOST,//
+  host: 'dpg-csvpgvilqhvc73bgrnu0-a', // the database server process.env.DB_HOST,//dpg-csvpgvilqhvc73bgrnu0-a
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -741,96 +741,231 @@ app.post('/community/:id/leave', async (req, res) => {
 // Get a unique community page
 app.get('/community/:id', async (req, res) => {
   if (!req.session.user) {
-    return res.status(401).send("Unauthorized: Please log in to view this community.");
+      return res.redirect('/login');
   }
 
   try {
-    const communityId = req.params.id;
-    const user = req.session.user;
+      const communityId = req.params.id;
+      const user = req.session.user;
 
-    // Get community details
-    const community = await db.oneOrNone(
-      `SELECT c.*, 
-              (SELECT COUNT(*) FROM community_memberships WHERE community_id = c.community_id) as member_count
-       FROM communities c
-       WHERE c.community_id = $1`,
-      [communityId]
-    );
+      // First check if community exists
+      const community = await db.oneOrNone('SELECT * FROM communities WHERE community_id = $1', [communityId]);
+      
+      if (!community) {
+          console.log('Community not found');
+          return res.redirect('/communities');
+      }
 
-    if (!community) {
-      return res.status(404).send("Community not found.");
-    }
+      // Check membership and if user is creator (admin)
+      const membership = await db.oneOrNone(
+          'SELECT username FROM community_memberships WHERE community_id = $1 AND username = $2',
+          [communityId, user.username]
+      );
 
+      if (!membership) {
+          console.log('User not a member');
+          return res.redirect('/communities');
+      }
 
-const members = await db.any(
-  `SELECT u.username,
-          CASE WHEN c.created_by = u.username THEN true ELSE false END as is_admin
-   FROM community_memberships cm
-   JOIN users u ON cm.username = u.username
-   JOIN communities c ON cm.community_id = c.community_id
-   WHERE cm.community_id = $1`,
-  [communityId]
-);
+      // Check if user is the creator (admin)
+      const isAdmin = community.created_by === user.username;
 
-    // Check if current user is member
-    const isMember = members.some(m => m.username === user.username);
-    
-    // Check if current user is creator (admin)
-    const isAdmin = community.created_by === user.username;
+      // Get messages
+      const messages = await db.any(`
+          SELECT cm.*, u.username 
+          FROM community_messages cm
+          JOIN users u ON cm.username = u.username
+          WHERE cm.community_id = $1
+          ORDER BY cm.sent_at DESC
+          LIMIT 50`,
+          [communityId]
+      );
 
-    // Get messages
-    const messages = await db.any(
-      `SELECT m.*, u.username
-       FROM community_messages m
-       JOIN users u ON m.username = u.username
-       WHERE m.community_id = $1
-       ORDER BY m.sent_at DESC
-       LIMIT 20`,
-      [communityId]
-    );
+      // Get notes based on whether user is admin or not
+      const notes = await db.any(`
+          SELECT n.*, cn.is_public, u.username as shared_by
+          FROM community_notes cn
+          JOIN notes n ON cn.note_id = n.id
+          JOIN users u ON n.username = u.username
+          WHERE cn.community_id = $1
+          AND (cn.is_public = true OR n.username = $2 OR $3 = true)
+          ORDER BY cn.shared_at DESC`,
+          [communityId, user.username, isAdmin]
+      );
 
-    res.render('pages/uniqueCommunity', {
-      community,
-      members,
-      messages: messages.reverse(),
-      user,
-      isMember,
-      isAdmin
-    });
+      const data = {
+          layout: 'main',
+          community: community,
+          isAdmin: isAdmin,
+          notes: notes,
+          messages: messages,
+          user: user
+      };
+
+      console.log('Rendering data:', {
+          communityExists: !!community,
+          hasMessages: messages.length,
+          hasNotes: notes.length,
+          isAdmin: isAdmin
+      });
+
+      res.render('pages/uniqueCommunity', data);
 
   } catch (error) {
-    console.error('Detailed error in /community/:id:', {
-      error: error.message,
-      stack: error.stack,
-      query: error?.query
-    });
-    res.status(500).send("Server error while fetching the community.");
+      console.error('Error in /community/:id route:', error);
+      res.status(500).send('Server error: ' + error.message);
   }
 });
 // Add endpoint for posting messages
 app.post('/community/:id/message', async (req, res) => {
   if (!req.session.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
-    const { content } = req.body;
-    const communityId = req.params.id;
-    const username = req.session.user.username;
+      const { content } = req.body;
+      const communityId = req.params.id;
+      const user = req.session.user;
 
-    await db.none(
-      `INSERT INTO community_messages (community_id, username, content)
-       VALUES ($1, $2, $3)`,
-      [communityId, username, content]
-    );
+      await db.none(
+          `INSERT INTO community_messages (community_id, username, content)
+           VALUES ($1, $2, $3)`,
+          [communityId, user.username, content]
+      );
 
-    res.json({ success: true });
+      res.json({ success: true });
   } catch (error) {
-    console.error('Error posting message:', error);
-    res.status(500).json({ error: "Error posting message" });
+      console.error('Error posting message:', error);
+      res.status(500).json({ error: "Error posting message" });
+  }
+});
+app.post('/api/community/:id/announcement', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { title, content } = req.body;
+      const communityId = req.params.id;
+      const username = req.session.user.username;
+
+      // Verify user is admin
+      const community = await db.one('SELECT created_by FROM communities WHERE community_id = $1', [communityId]);
+      if (community.created_by !== username) {
+          return res.status(403).json({ error: "Not authorized to create announcements" });
+      }
+
+      // Insert into community_messages - combine title and content
+      const fullMessage = `${title}\n\n${content}`;
+      await db.none(
+          `INSERT INTO community_messages (community_id, username, content, is_announcement) 
+           VALUES ($1, $2, $3, true)`,
+          [communityId, username, fullMessage]
+      );
+
+      res.json({ success: true });
+  } catch (error) {
+      console.error('Error creating announcement:', error);
+      res.status(500).json({ error: "Server error" });
   }
 });
 
+app.get('/api/user/notes', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const notes = await db.any(`
+          SELECT id, title 
+          FROM notes 
+          WHERE username = $1
+          ORDER BY title`,
+          [req.session.user.username]
+      );
+      res.json(notes);
+  } catch (error) {
+      console.error('Error fetching notes:', error);
+      res.status(500).json({ error: "Failed to fetch notes" });
+  }
+});
+
+app.post('/api/community/:id/share-note', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { noteId, isPublic = false } = req.body;
+      const communityId = req.params.id;
+      const username = req.session.user.username;  // Changed from user to username
+
+      // Verify note ownership and community membership
+      const [noteOwnership, community] = await Promise.all([
+          db.oneOrNone('SELECT 1 FROM notes WHERE id = $1 AND username = $2', 
+              [noteId, username]),
+          db.oneOrNone('SELECT created_by FROM communities WHERE community_id = $1', 
+              [communityId])
+      ]);
+
+      const isAdmin = community.created_by === username;
+
+      if (!noteOwnership || !isAdmin) {
+          return res.status(403).json({ error: 'Unauthorized' });
+      }
+
+      // Share note with community
+      await db.none(
+          'INSERT INTO community_notes (community_id, note_id, shared_by, is_public) VALUES ($1, $2, $3, $4)',
+          [communityId, noteId, username, isPublic]
+      );
+
+      res.json({ success: true });
+  } catch (error) {
+      console.error('Error sharing note:', error);
+      res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/community/:id/copy-note/:noteId', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { noteId } = req.params;
+      const communityId = req.params.id;
+      const user = req.session.user;
+
+      // Get original note and verify it's public in the community
+      const note = await db.one(`
+          SELECT n.* 
+          FROM notes n
+          JOIN community_notes cn ON n.id = cn.note_id
+          WHERE cn.community_id = $1 
+          AND n.id = $2 
+          AND cn.is_public = true`,
+          [communityId, noteId]
+      );
+
+      // Create copy for student
+      const newNoteId = await db.one(
+          'INSERT INTO notes (title, content, username) VALUES ($1, $2, $3) RETURNING id',
+          [`Copy of ${note.title}`, note.content, user.username]
+      );
+
+      // Share with original note owner (teacher)
+      await db.none(
+          'INSERT INTO note_permissions (note_id, username, can_view) VALUES ($1, $2, true)',
+          [newNoteId.id, note.username]
+      );
+
+      res.json({ success: true, noteId: newNoteId.id });
+  } catch (error) {
+      console.error('Error copying note:', error);
+      res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Fetch all community members (for modal view)
 app.get('/community/:id/members', async (req, res) => {

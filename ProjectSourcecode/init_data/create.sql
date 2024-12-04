@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS communities (
     description TEXT, -- The description of the community 
     Community_picture_url VARCHAR(255), -- community picture
     is_private BOOLEAN DEFAULT FALSE, -- whether the communtiy is public or private 
-    access_code VARCHAR(50), -- Optional; used only if is_private = TRUE
+    access_code VARCHAR(50), 
     created_by VARCHAR(50) REFERENCES users(username) ON DELETE SET NULL, -- Links community to its creator
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP -- Tracks community creation date
 );
@@ -104,3 +104,12 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+
+CREATE TABLE IF NOT EXISTS community_notes (
+    community_id INTEGER REFERENCES communities(community_id) ON DELETE CASCADE,
+    note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+    shared_by VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE,
+    is_public BOOLEAN DEFAULT FALSE,
+    shared_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (community_id, note_id)
+);

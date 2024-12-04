@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS community_messages (
     username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Links message to the sender
     content TEXT NOT NULL,
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, 
-    title VARCHAR(50) NOT NULL
+    title VARCHAR(255) NOT NULL
 );
 
 -- TODO: friends table

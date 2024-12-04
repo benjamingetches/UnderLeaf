@@ -1,3 +1,7 @@
+
+<div id="notification" class="notification"></div>
+
+
 <div class="community-container">
     <div class="community-banner" data-community-id="{{community.community_id}}">
         <h1>{{community.name}}</h1>
@@ -13,7 +17,7 @@
                 <div class="access-code-container">
                     <span class="access-code-label">Access Code:</span>
                     <span class="access-code">{{community.access_code}}</span>
-                    <button class="btn btn-secondary copy-btn btn-sm" onclick="copyAccessCode('{{community.access_code}}')">
+                    <button class="btn btn-primary copy-btn" onclick="copyAccessCode('{{community.access_code}}')">
                         Copy Code
                     </button>
                 </div>
@@ -45,14 +49,21 @@
             <div class="notes-column">
                 <h2>Community Notes</h2>
                 <button class="btn btn-primary" onclick="shareNoteWithCommunity()">Share Note</button>
+                
+                <!-- Admin's shared notes -->
                 <div class="notes-list">
+                    <h3>Your Shared Notes</h3>
                     {{#if notes.length}}
                         {{#each notes}}
-                            <div class="note-card">
-                                <h4>{{this.title}}</h4>
-                                <p>Shared by: {{this.shared_by}}</p>
+                            <div class="note-card" data-note-id="{{this.id}}">
+                                <div class="note-info">
+                                    <h4>{{this.title}}</h4>
+                                    <p>Shared by: {{this.shared_by}}</p>
+                                    <span class="copy-count">{{this.copy_count}} copies</span>
+                                </div>
                                 <div class="note-controls">
-                                    <button class="btn btn-sm btn-danger" onclick="removeNote('{{this.id}}')">Remove</button>
+                                    <button class="btn btn-info" onclick="viewCopies('{{this.id}}')">View Copies</button>
+                                    <button class="btn btn-danger" onclick="removeNote('{{this.id}}')">Remove</button>
                                 </div>
                             </div>
                         {{/each}}
@@ -60,22 +71,47 @@
                         <p class="no-content">No notes shared yet</p>
                     {{/if}}
                 </div>
-            </div>
 
-            <div class="messages-column">
-                <h2>Student Messages</h2>
-                <div class="messages-container">
-                    {{#if messages.length}}
-                        {{#each messages}}
-                            <div class="message">
-                                <span class="sender">{{this.username}}</span>
-                                <p>{{this.content}}</p>
-                                <span class="timestamp">{{this.sent_at}}</span>
+                <!-- Student copies section -->
+                <div class="notes-list mt-4">
+                    <h3>Member's Copies</h3>
+                    {{#if studentCopies.length}}
+                        {{#each studentCopies}}
+                            <div class="note-card">
+                                <div class="note-info">
+                                    <h4>{{this.title}}</h4>
+                                    <p>Created by: {{this.student_name}}</p>
+                                    <span class="timestamp">{{formatDate this.shared_at}}</span>
+                                </div>
+                                <div class="note-controls">
+                                    <a href="/editor?note={{this.id}}&viewOnly=true" class="btn btn-primary">View</a>
+                                </div>
                             </div>
                         {{/each}}
                     {{else}}
-                        <p class="no-content">No messages yet</p>
+                        <p class="no-content">No student copies yet</p>
                     {{/if}}
+                </div>
+            </div>
+
+            <div class="messages-column" data-community-id="{{community.community_id}}" data-current-user="{{user.username}}">
+                <h2>Messages</h2>
+                <div class="user-selector">
+                    <select id="userSelect" onchange="selectUser(this.value)" class="form-control">
+                        <option value="">Select a user to message</option>
+                        {{#each members}}
+                            <option value="{{this.username}}">{{this.username}}</option>
+                        {{/each}}
+                    </select>
+                </div>
+                <div class="message-area">
+                    <div id="messageDisplay" class="messages-list">
+                        <!-- Messages loaded here -->
+                    </div>
+                    <div class="message-input">
+                        <input type="text" id="messageInput" placeholder="Type a message...">
+                        <button onclick="sendMessage()">Send</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -105,10 +141,12 @@
                     {{#if personalNotes.length}}
                         {{#each personalNotes}}
                             <div class="note-card">
-                                <h4>{{this.title}}</h4>
+                                <div class="note-info">
+                                    <h4>{{this.title}}</h4>
+                                    <p class="note-meta">Created: {{formatDate this.shared_at}}</p>
+                                </div>
                                 <div class="note-actions">
-                                    <button class="btn btn-sm btn-primary" onclick="editNote('{{this.id}}')">Edit</button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteNote('{{this.id}}')">Delete</button>
+                                    <a href="/editor?note={{this.id}}" class="btn btn-primary ">Open Note</a>
                                 </div>
                             </div>
                         {{/each}}
@@ -118,41 +156,48 @@
                 </div>
 
                 <div class="shared-notes">
-                    <h2>Teacher's Shared Notes</h2>
-                    {{#if teacherNotes.length}}
-                        {{#each teacherNotes}}
-                            <div class="note-card">
-                                <h4>{{this.title}}</h4>
-                                <div class="note-actions">
-                                    <button class="btn btn-sm btn-primary" onclick="viewNote('{{this.id}}')">View</button>
-                                    <button class="btn btn-sm btn-success" onclick="copyNote('{{this.id}}')">Copy</button>
+                    <h2>Notes Shared to you</h2>
+                    <div class="notes-list">
+                        {{#if teacherNotes.length}}
+                            {{#each teacherNotes}}
+                                <div class="note-card" data-note-id="{{this.id}}">
+                                    <div class="note-info">
+                                        <h4>{{this.title}}</h4>
+                                        <p class="note-meta">Shared by: {{this.shared_by}} on {{formatDate this.shared_at}}</p>
+                                    </div>
+                                    <div class="note-actions">
+                                        {{#if this.has_copy}}
+                                            <span class="badge bg-success">Already Copied</span>
+                                        {{else}}
+                                            <button class="btn btn-primary" onclick="copyAndViewNote({{this.id}})">
+                                                Copy & View
+                                            </button>
+                                        {{/if}}
+                                    </div>
                                 </div>
-                            </div>
-                        {{/each}}
-                    {{else}}
-                        <p class="no-content">No notes shared by teacher yet</p>
-                    {{/if}}
+                            {{/each}}
+                        {{else}}
+                            <p class="no-content">No notes shared by teacher yet</p>
+                        {{/if}}
+                    </div>
                 </div>
             </div>
-
-            <div class="messages-column">
+            <div class="messages-column" data-community-id="{{community.community_id}}" data-current-user="{{user.username}}">
                 <h2>Message Instructor</h2>
-                <div class="messages-container">
-                    {{#if messages.length}}
-                        {{#each messages}}
-                            <div class="message">
-                                <span class="sender">{{this.username}}</span>
-                                <p>{{this.content}}</p>
-                            </div>
-                        {{/each}}
-                    {{else}}
-                        <p class="no-content">No messages yet</p>
-                    {{/if}}
-                </div>
-                <div class="message-input">
-                    <input type="text" id="messageInput" placeholder="Type a message...">
-                    <button class="btn btn-primary" onclick="sendMessage()">Send</button>
-                </div>
+                    <div class="message-area">
+                        <div id="messageDisplay" class="messages-list">
+                            {{#each messages}}
+                                <div class="message {{#if (eq from_user ../user.username)}}sent{{else}}received{{/if}}">
+                                    <p>{{this.content}}</p>
+                                    <span class="timestamp">{{formatDate this.sent_at}}</span>
+                                </div>
+                            {{/each}}
+                        </div>
+                        <div class="message-input">
+                            <input type="text" id="messageInput" placeholder="Type a message...">
+                            <button onclick="sendMessage('{{community.created_by}}')">Send</button>
+                        </div>
+                    </div>
             </div>
         </div>
     {{/if}}
@@ -187,6 +232,17 @@
         </div>
     </div>
 </div>
+<div id="viewCopiesModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Student Copies</h2>
+            <button onclick="closeModal('viewCopiesModal')" class="close-button">&times;</button>
+        </div>
+        <div id="copiesList" class="copies-list">
+            <!-- Copies will be loaded here -->
+        </div>
+    </div>
+</div>
 
 
 <style>
@@ -195,9 +251,16 @@
         margin: 20px auto;
         padding: 0 20px;
     }
-
+    .card-title, 
+    .modal-header h2,
+    .section-title {
+        color: #3c5832;
+    }
+    .section-header {
+        background: linear-gradient(135deg, #8cb67d 0%, #accaa1 100%);
+    }
     .community-header {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #8cb67d 0%, #accaa1 100%);
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
@@ -266,11 +329,38 @@
     .close-button:hover {
         color: #666;
     }
+    .note-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #8cb67d;
+    }
 
+    .note-info {
+        flex: 1;
+    }
+
+    .note-meta {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .note-actions {
+        margin-left: 15px;
+    }
+    .card:hover,
     .note-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         transition: transform 0.2s ease;
     }
+
+
     .members-panel, .chat-panel {
         background: white;
         padding: 15px;
@@ -286,18 +376,34 @@
         margin: 0 5px;
     }
 
-    .btn-primary { background-color: #0073b1; color: white; }
-    .btn-danger { background-color: #dc3545; color: white; }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-primary:hover {
-        background-color: #7aa36c;
+    .btn-primary {
+        background-color: #8cb67d !important;
+        border: none;
+        transition: background-color 0.2s ease;
     }
 
+    .btn-primary:hover {
+        background-color: #638159 !important;
+    }
+    .btn-danger { background-color: #d9534f; color: white; opacity: 0.9; }
+    .btn-secondary { background-color: #6c757d; color: white; }
+
+    .btn-danger:hover {
+        background-color: #c9302c !important;
+        opacity: 0.9;
+    }
     .btn-success {
         background-color: #4CAF50;
         color: white;
     }
+    .btn-info {
+        background-color: #8cb67d !important;
+        border: none;
+    }
 
+    .btn-info:hover {
+        background-color: #638159 !important;
+    }
     .messages-container {
         max-height: 400px;
         overflow-y: auto;
@@ -336,6 +442,33 @@
         margin-bottom: 10px;
     }
 
+    .copies-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 15px;
+    }
+
+    .copy-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border: 1px solid #dee2e6;
+    }
+
+    .copy-item .student-name {
+        font-weight: bold;
+        color: #2c5282;
+    }
+
+    .copy-item .timestamp {
+        font-size: 0.8em;
+        color: #666;
+    }
+
+    .copy-item .controls {
+        margin-top: 10px;
+    }
     .admin-badge {
         background: #73cf73;
         color: white;
@@ -367,9 +500,39 @@
         border-radius: 3px;
         border: 1px solid #ddd;
     }
+    .notification {
+        position: fixed;
+        left: 50%;
+        top: 20px;
+        transform: translateX(-50%) translateY(-20px);
+        padding: 15px 25px;
+        background-color: #fff;
+        color: #555;
+        border-left: 4px solid #8cb67d;  /* Using our green theme */
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        opacity: 0;
+        transition: all 0.5s ease;
+        z-index: 1000;
+        min-width: 300px;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .notification.hide {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
 
     .copy-btn {
         padding: 4px 8px;
+        background: #8cb67d;
+        border: none;
         font-size: 0.9em;
     }
     @media (max-width: 768px) {
@@ -379,7 +542,7 @@
     }
     .community-banner {
         width: 100%;
-        background: linear-gradient(to right, #0073b1, #7aa36c);
+        background: linear-gradient(to right, #8cb67d, #638159);
         color: white;
         padding: 20px;
         text-align: center;
@@ -533,7 +696,293 @@
     }
 
     .copy-btn:hover {
-        background-color: #006d87;
+        background-color: #638159;
+    }
+    .copy-count {
+        background: #e9ecef;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .mt-4 {
+        margin-top: 1.5rem;
+    }
+
+    .notes-list h3 {
+        font-size: 1.2rem;
+        color: #333;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #eee;
+    }
+    .note-share-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .note-info {
+        flex: 1;
+        margin-right: 15px;
+    }
+
+    .note-info h4 {
+        margin: 0 0 5px 0;
+        color: #333;
+    }
+
+    .note-preview {
+        font-size: 0.9em;
+        color: #666;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .note-share-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .user-list {
+        border-right: 1px solid #eee;
+        overflow-y: auto;
+        max-height: 300px;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .user-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .user-item.active {
+        background-color: #e9ecef;
+    }
+
+    .user-item img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .message-area {
+        display: flex;
+        flex-direction: column;
+        height: 400px;
+    }
+
+    .messages-list {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .message {
+        max-width: 70%;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 5px;
+    }
+
+    .message.sent {
+        background-color: #8cb67d;
+        color: white;
+        align-self: flex-end;
+    }
+
+    .message.received {
+        background-color: #f1f1f1;
+        align-self: flex-start;
+    }
+
+    .message .timestamp {
+        font-size: 0.8em;
+        opacity: 0.8;
+        display: block;
+        margin-top: 5px;
+    }
+
+    .message-input {
+        display: flex;
+        gap: 10px;
+        padding: 15px;
+        border-top: 1px solid #eee;
+    }
+
+    .message-input input {
+        flex-grow: 1;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .message-input button {
+        padding: 8px 15px;
+        background-color: #8cb67d;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .message-input button:hover {
+        background-color: #638159;
+    }
+    .user-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #eee;
+    }
+
+    .user-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .user-item.active {
+        background-color: #e9ecef;
+        font-weight: bold;
+    }
+    .user-selector {
+        margin-bottom: 15px;
+        padding: 10px;
+    }
+
+    .user-selector select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+        font-size: 1rem;
+    }
+
+    .user-selector select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+    #viewCopiesModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    #viewCopiesModal .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        position: relative;
+        max-height: 80vh;
+        overflow-y: auto;
+        border: none;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+
+    #viewCopiesModal .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        color: #3c5832;
+    }
+
+    #viewCopiesModal .modal-header h2 {
+        font-weight: 300;
+        margin: 0;
+        color: #3c5832;
+    }
+
+    .copy-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .copy-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .copy-item .student-name {
+        color: #3c5832;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+
+    .copy-item .timestamp {
+        color: #666;
+        font-size: 0.85rem;
+        margin-bottom: 10px;
+    }
+
+    .copy-item .controls {
+        margin-top: 10px;
+    }
+
+    .copy-item .controls .btn-primary {
+        background-color: #8cb67d;
+        border: none;
+        padding: 0.5rem 1rem;
+        transition: background-color 0.2s ease;
+    }
+
+    .copy-item .controls .btn-primary:hover {
+        background-color: #638159;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0 5px;
+        color: #666;
+        transition: color 0.2s ease;
+    }
+
+    .close-button:hover {
+        color: #333;
+    }
+
+    .no-content {
+        color: #666;
+        text-align: center;
+        padding: 20px;
+        font-size: 0.9rem;
     }
 
 </style>
@@ -590,6 +1039,9 @@ function closeModal(modalId) {
 async function loadUserNotes() {
     try {
         const response = await fetch('/api/user/notes');
+        if (!response.ok) {
+            throw new Error('Failed to fetch notes');
+        }
         const notes = await response.json();
         const notesList = document.getElementById('userNotesList');
         
@@ -600,11 +1052,11 @@ async function loadUserNotes() {
 
         notesList.innerHTML = notes.map(note => `
             <div class="note-share-item">
-                <span>${note.title}</span>
+                <div class="note-info">
+                    <h4>${note.title}</h4>
+                    <p class="note-preview">${note.content ? note.content.substring(0, 100) + '...' : 'No content'}</p>
+                </div>
                 <div class="note-share-controls">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="public-${note.id}"> Public
-                    </label>
                     <button onclick="shareNote(${note.id})" class="btn btn-primary">Share</button>
                 </div>
             </div>
@@ -612,10 +1064,9 @@ async function loadUserNotes() {
     } catch (error) {
         console.error('Error loading notes:', error);
         document.getElementById('userNotesList').innerHTML = 
-            '<p class="error-message">Error loading notes</p>';
+            '<p class="error-message">Error loading notes. Please try again.</p>';
     }
 }
-
 async function createAnnouncement() {
     const title = document.getElementById('announcementTitle').value;
     const content = document.getElementById('announcementContent').value;
@@ -647,14 +1098,14 @@ async function createAnnouncement() {
 }
 
 async function shareNote(noteId) {
-    const isPublic = document.getElementById(`public-${noteId}`).checked;
+
     const communityId = document.querySelector('[data-community-id]').dataset.communityId;
 
     try {
         const response = await fetch(`/api/community/${communityId}/share-note`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ noteId, isPublic })
+            body: JSON.stringify({ noteId })
         });
 
         if (response.ok) {
@@ -730,4 +1181,250 @@ document.head.insertAdjacentHTML('beforeend', `
 }
 </style>
 `);
+
+
+//Start of user sided functions
+//TODO: change alerts to notifications
+async function copyAndViewNote(noteId) {
+    if (!noteId) {
+        showNotification('Error: Note ID is missing');
+        return;
+    }
+
+    try {
+        const communityId = document.querySelector('[data-community-id]').dataset.communityId;
+        
+        // First check if copy exists
+        const checkResponse = await fetch(`/api/community/${communityId}/check-note-copy/${noteId}`);
+        if (!checkResponse.ok) {
+            throw new Error(`Failed to check note copy: ${checkResponse.status}`);
+        }
+        const checkData = await checkResponse.json();
+
+        if (checkData.hasCopy) {
+            // If copy exists, redirect to it
+            localStorage.setItem('notification', 'Already copied!');
+
+            window.location.href = `/editor?note=${checkData.copyId}`;
+        } else {
+            // If no copy exists, create one
+            const copyResponse = await fetch(`/api/community/${communityId}/copy-note/${noteId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!copyResponse.ok) {
+                const errorText = await copyResponse.text();
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.error || 'Failed to copy note');
+                } catch (e) {
+                    throw new Error(`Failed to copy note: ${copyResponse.status}`);
+                }
+            }
+
+            const data = await copyResponse.json();
+            updateUIAfterCopy(data.originalNoteId);
+            localStorage.setItem('notification', 'Note copied successfully! Opening editor...');
+
+            window.location.href = `/editor?note=${data.noteId}`;
+        }
+    } catch (error) {
+        console.error('Error handling note:', error);
+        alert(error.message || 'Failed to handle note');
+    }
+}
+function updateUIAfterCopy(originalNoteId) {
+    // Update copy count in admin view
+    const noteCard = document.querySelector(`[data-note-id="${originalNoteId}"]`);
+    if (noteCard) {
+        const copyCountSpan = noteCard.querySelector('.copy-count');
+        if (copyCountSpan) {
+            const currentCount = parseInt(copyCountSpan.textContent);
+            copyCountSpan.textContent = `${currentCount + 1} copies`;
+        }
+    }
+}
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.classList.remove('show', 'hide');
+        }, 500);
+    }, 3000);
+}
+
+let selectedUser = null;
+const currentUsername = document.querySelector('[data-current-user]').dataset.currentUser;
+const communityId = document.querySelector('[data-community-id]').dataset.communityId;
+
+async function selectUser(username) {
+    selectedUser = username;
+    await loadMessages(username);
+    
+    // Update UI to show selected user
+    const select = document.getElementById('userSelect');
+    select.value = username;
+}
+
+async function loadMessages(username) {
+    if (!username) return; // Don't load if no user selected
+    
+    try {
+        const response = await fetch(`/api/community/${communityId}/messages/${username}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to load messages');
+        }
+        
+        const messages = await response.json();
+        displayMessages(messages);
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+function displayMessages(messages) {
+    const messageDisplay = document.getElementById('messageDisplay');
+    if (!messageDisplay) return;
+    
+    messageDisplay.innerHTML = messages.map(msg => `
+        <div class="message ${msg.from_user === currentUsername ? 'sent' : 'received'}">
+            <p>${escapeHtml(msg.content)}</p>
+            <span class="timestamp">${formatDate(msg.sent_at)}</span>
+        </div>
+    `).join('');
+    
+    // Scroll to bottom
+    messageDisplay.scrollTop = messageDisplay.scrollHeight;
+}
+
+// Helper function to escape HTML and prevent XSS
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+async function viewCopies(noteId) {
+    try {
+        const communityId = document.querySelector('[data-community-id]').dataset.communityId;
+        const response = await fetch(`/api/community/${communityId}/note/${noteId}/copies`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch copies');
+        }
+        
+        const copies = await response.json();
+        displayCopies(copies);
+        
+        // Show modal with flex display
+        const modal = document.getElementById('viewCopiesModal');
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error('Error viewing copies:', error);
+        alert('Failed to load copies');
+    }
+}
+
+function displayCopies(copies) {
+    const copiesList = document.getElementById('copiesList');
+    
+    if (copies.length === 0) {
+        copiesList.innerHTML = '<p class="no-content">No copies found</p>';
+        return;
+    }
+    
+    copiesList.innerHTML = copies.map(copy => `
+        <div class="copy-item">
+            <div class="student-name">${escapeHtml(copy.student_name)}</div>
+            <div class="timestamp">Created: ${formatDate(copy.shared_at)}</div>
+            <div class="controls">
+                <a href="/edit-note/${copy.id}?viewOnly=true" 
+                   class="btn btn-primary">View Copy</a>
+            </div>
+        </div>
+    `).join('');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+async function sendMessage(toUser = null) {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+    const communityId = document.querySelector('[data-community-id]').dataset.communityId;
+    
+    if (!content) return;
+    
+    // For admin view, use selectedUser, for student view use passed toUser
+    const recipient = toUser || selectedUser;
+    
+    if (!recipient) {
+        alert('Please select a user to message');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/community/${communityId}/message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content,
+                toUser: recipient
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to send message');
+        }
+        
+        // Clear input
+        input.value = '';
+        
+        // Reload messages
+        if (selectedUser) {
+            await loadMessages(selectedUser);
+        } else {
+            // For student view, append message locally
+            const messageDisplay = document.getElementById('messageDisplay');
+            const newMessage = document.createElement('div');
+            newMessage.className = 'message sent';
+            newMessage.innerHTML = `
+                <p>${content}</p>
+                <span class="timestamp">${formatDate(new Date())}</span>
+            `;
+            messageDisplay.appendChild(newMessage);
+            messageDisplay.scrollTop = messageDisplay.scrollHeight;
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message');
+    }
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
+// Add this to periodically check for new messages
+setInterval(async () => {
+    if (selectedUser) {
+        await loadMessages(selectedUser);
+    }
+}, 10000); // Check every 5 seconds
 </script>

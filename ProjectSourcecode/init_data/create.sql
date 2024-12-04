@@ -39,20 +39,20 @@ CREATE TABLE IF NOT EXISTS template_permissions (
 
 -- TODO: communities table
 CREATE TABLE IF NOT EXISTS communities (
-    community_id SERIAL PRIMARY KEY, -- unique id of identification for the communtiy
-    name VARCHAR(100) NOT NULL, -- name of the communtiy
-    description TEXT, -- The description of the community 
-    Community_picture_url VARCHAR(255), -- community picture
-    is_private BOOLEAN DEFAULT FALSE, -- whether the communtiy is public or private 
+    community_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL, 
+    description TEXT, 
+    Community_picture_url VARCHAR(255), 
+    is_private BOOLEAN DEFAULT FALSE, --  public or private 
     access_code VARCHAR(50), 
     created_by VARCHAR(50) REFERENCES users(username) ON DELETE SET NULL, -- Links community to its creator
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP -- Tracks community creation date
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP 
 );
 
 CREATE TABLE IF NOT EXISTS community_roles (
-    role_id SERIAL PRIMARY KEY, -- Unique identifier for each role
-    role_name VARCHAR(50) UNIQUE NOT NULL, -- Role name (e.g., "Admin", "Moderator", "Member")
-    description TEXT -- Description of the role and its permissions
+    role_id SERIAL PRIMARY KEY, 
+    role_name VARCHAR(50) UNIQUE NOT NULL, 
+    description TEXT 
 );
 
 CREATE TABLE IF NOT EXISTS community_memberships (
@@ -63,12 +63,12 @@ CREATE TABLE IF NOT EXISTS community_memberships (
 );
 
 CREATE TABLE IF NOT EXISTS community_messages (
-    message_id SERIAL PRIMARY KEY, -- Unique identifier for each message
+    message_id SERIAL PRIMARY KEY, 
     community_id INT REFERENCES communities(community_id) ON DELETE CASCADE, -- Links message to the community
     username VARCHAR(50) REFERENCES users(username) ON DELETE CASCADE, -- Links message to the sender
-    content TEXT NOT NULL, -- The message content
-    sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the message was sent
-    edited_at TIMESTAMP WITH TIME ZONE -- Optional; to track if the message was edited
+    content TEXT NOT NULL,
+    sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, 
+    title VARCHAR(50) NOT NULL
 );
 
 -- TODO: friends table
@@ -112,4 +112,23 @@ CREATE TABLE IF NOT EXISTS community_notes (
     is_public BOOLEAN DEFAULT FALSE,
     shared_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (community_id, note_id)
+);
+CREATE TABLE IF NOT EXISTS community_announcements (
+    id SERIAL PRIMARY KEY,
+    community_id INTEGER REFERENCES communities(community_id),
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_by VARCHAR(50) REFERENCES users(username),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- changed mesdsages and announcements 
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id SERIAL PRIMARY KEY,
+    community_id INTEGER REFERENCES communities(community_id),
+    from_user VARCHAR(50) REFERENCES users(username),
+    to_user VARCHAR(50) REFERENCES users(username),
+    content TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN DEFAULT FALSE
 );

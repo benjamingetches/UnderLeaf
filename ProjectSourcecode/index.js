@@ -44,6 +44,20 @@ const hbs = handlebars.create({
       }
       return opts.inverse(this);
     },
+    eq: function(a, b) {
+      return a === b;
+    },
+    formatDate: function(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
     safeLatex: function(text) {
       if (!text) return '';
       return new Handlebars.SafeString(
@@ -330,7 +344,7 @@ const auth = (req, res, next) => {
         publicPath: ['/login', '/register', '/logout', '/auth'].includes(req.path)
     });
     
-    const publicPaths = ['/login', '/register', '/logout', '/request-password-reset', '/verify-reset-token', '/reset-password'];
+    const publicPaths = ['/login', '/register', '/logout', '/request-password-reset', '/verify-reset-token', '/reset-password', '/api/user/notes'];
     if (!req.session.user && !publicPaths.includes(req.path)) {
         console.log('Redirecting to login - unauthorized access');
         return res.redirect('/login');
@@ -740,80 +754,169 @@ app.post('/community/:id/leave', async (req, res) => {
 
 // Get a unique community page
 app.get('/community/:id', async (req, res) => {
-  if (!req.session.user) {
-      return res.redirect('/login');
-  }
-
   try {
       const communityId = req.params.id;
-      const user = req.session.user;
+      const username = req.session.user.username;
+      const user = await db.one('SELECT * FROM users WHERE username = $1', [username]);
+      messages =[];
 
-      // First check if community exists
-      const community = await db.oneOrNone('SELECT * FROM communities WHERE community_id = $1', [communityId]);
-      
-      if (!community) {
-          console.log('Community not found');
-          return res.redirect('/communities');
-      }
-
-      // Check membership and if user is creator (admin)
-      const membership = await db.oneOrNone(
-          'SELECT username FROM community_memberships WHERE community_id = $1 AND username = $2',
-          [communityId, user.username]
+      // Get community info and check if user is admin
+      const community = await db.one(`
+          SELECT 
+              *,
+              CASE WHEN created_by = $2 THEN true ELSE false END as "isAdmin"
+          FROM communities 
+          WHERE community_id = $1`, 
+          [communityId, username]
       );
 
-      if (!membership) {
-          console.log('User not a member');
-          return res.redirect('/communities');
-      }
-
-      // Check if user is the creator (admin)
-      const isAdmin = community.created_by === user.username;
-
-      // Get messages
-      const messages = await db.any(`
-          SELECT cm.*, u.username 
-          FROM community_messages cm
-          JOIN users u ON cm.username = u.username
-          WHERE cm.community_id = $1
-          ORDER BY cm.sent_at DESC
-          LIMIT 50`,
+        // Get announcements from the new table
+        const announcements = await db.any(`
+          SELECT 
+              id,
+              title,
+              content,
+              created_by,
+              to_char(created_at, 'MM/DD/YYYY HH12:MI AM') as created_at
+          FROM community_announcements 
+          WHERE community_id = $1
+          ORDER BY created_at DESC`, 
           [communityId]
       );
 
-      // Get notes based on whether user is admin or not
-      const notes = await db.any(`
-          SELECT n.*, cn.is_public, u.username as shared_by
-          FROM community_notes cn
-          JOIN notes n ON cn.note_id = n.id
-          JOIN users u ON n.username = u.username
-          WHERE cn.community_id = $1
-          AND (cn.is_public = true OR n.username = $2 OR $3 = true)
-          ORDER BY cn.shared_at DESC`,
-          [communityId, user.username, isAdmin]
-      );
+      // Get messages
+      if (community.isAdmin) {
+        // Get all messages for admin grouped by user
+        messages = await db.any(`
+            SELECT 
+                dm.*,
+                u.username
+            FROM direct_messages dm
+            JOIN users u ON u.username = 
+                CASE WHEN dm.from_user = $1 THEN dm.to_user 
+                ELSE dm.from_user END
+            WHERE dm.community_id = $2
+            ORDER BY dm.sent_at DESC`,
+            [username, communityId]
+        );
+    } else {
+        // Get messages between user and admin
+        messages = await db.any(`
+            SELECT * FROM direct_messages
+            WHERE community_id = $1
+            AND ((from_user = $2 AND to_user = $3) 
+            OR (from_user = $3 AND to_user = $2))
+            ORDER BY sent_at ASC`,
+            [communityId, username, community.created_by]
+        );
+    }
 
-      const data = {
-          layout: 'main',
-          community: community,
-          isAdmin: isAdmin,
-          notes: notes,
-          messages: messages,
-          user: user
-      };
 
-      console.log('Rendering data:', {
-          communityExists: !!community,
-          hasMessages: messages.length,
-          hasNotes: notes.length,
-          isAdmin: isAdmin
+      // Get notes based on user role
+      let notes, studentCopies, personalNotes, teacherNotes, members=[];
+      
+      if (community.isAdmin) {
+
+          // Admin view: get shared notes and their copies
+          [notes, studentCopies, members] = await Promise.all([
+              // Get admin's shared notes with copy count
+              db.any(`
+                SELECT 
+                    n.*,
+                    cn.shared_at,
+                    cn.is_public,
+                    (
+                        SELECT COUNT(*)
+                        FROM notes copies
+                        WHERE copies.title LIKE '%''s copy of ' || n.title
+                    ) as copy_count
+                FROM notes n
+                JOIN community_notes cn ON n.id = cn.note_id
+                WHERE cn.community_id = $1 
+                AND cn.shared_by = $2
+                GROUP BY n.id, n.title, n.content, n.username, cn.shared_at, cn.is_public
+                ORDER BY cn.shared_at DESC`,
+                [communityId, username]
+            ),
+              // Get student copies
+              db.any(`
+                SELECT 
+                    n.*,
+                    u.username as student_name,
+                    cn.shared_at,
+                    original.title as original_title
+                FROM notes n
+                JOIN users u ON n.username = u.username
+                JOIN community_notes cn ON n.id = cn.note_id
+                JOIN notes original ON n.title LIKE u.username || '''s copy of ' || original.title
+                WHERE cn.community_id = $1 
+                AND n.title LIKE '%''s copy of %'
+                AND original.username = $2
+                ORDER BY u.username, cn.shared_at DESC`,
+                [communityId, username]
+            ),
+              db.any(`
+                SELECT DISTINCT username 
+                FROM community_memberships 
+                WHERE community_id = $1 
+                AND username != $2
+                ORDER BY username`,
+                [communityId, username]
+            )
+        ]);
+      } else {
+          // Student view: get personal copies and teacher notes
+          [personalNotes, teacherNotes] = await Promise.all([
+              // Get student's copies
+              db.any(`
+                  SELECT n.*, cn.shared_at
+                  FROM notes n
+                  JOIN community_notes cn ON n.id = cn.note_id
+                  WHERE n.username = $1 
+                  AND cn.community_id = $2
+                  ORDER BY cn.shared_at DESC`,
+                  [username, communityId]
+              ),
+              // Get available teacher notes
+              db.any(`
+                SELECT n.*, cn.shared_at, cn.shared_by,
+                       EXISTS(
+                           SELECT 1 FROM notes copies 
+                           WHERE copies.username = $1 
+                           AND copies.title = 'Copy of ' || n.title
+                       ) as has_copy
+                FROM notes n
+                JOIN community_notes cn ON n.id = cn.note_id
+                WHERE cn.community_id = $2 
+                AND cn.shared_by IN (
+                    SELECT created_by FROM communities WHERE community_id = $2
+                )
+                ORDER BY cn.shared_at DESC`,
+                [username, communityId]
+              )
+          ]);
+      }
+
+      res.render('pages/uniqueCommunity', {
+          community,
+          messages,
+          notes,
+          members,
+          studentCopies,
+          personalNotes,
+          teacherNotes,
+          isAdmin: community.isAdmin,
+            // Add these for navbar
+          user: req.session.user,
+          username: req.session.user.username,
+          announcements,
+          ai_credits: req.session.user.ai_credits,
+          is_premium: req.session.user.is_premium,
+          layout: 'main'  // Make sure we're using the main layout with navbar
       });
-
-      res.render('pages/uniqueCommunity', data);
-
   } catch (error) {
-      console.error('Error in /community/:id route:', error);
-      res.status(500).send('Server error: ' + error.message);
+      console.error('Error:', error);
+      res.status(500).send('Server error');
   }
 });
 // Add endpoint for posting messages
@@ -823,15 +926,16 @@ app.post('/community/:id/message', async (req, res) => {
   }
 
   try {
-      const { content } = req.body;
+      const { content, toUser } = req.body;
       const communityId = req.params.id;
-      const user = req.session.user;
+      const fromUser = req.session.user.username;
+
 
       await db.none(
-          `INSERT INTO community_messages (community_id, username, content)
-           VALUES ($1, $2, $3)`,
-          [communityId, user.username, content]
-      );
+        `INSERT INTO direct_messages (community_id, from_user, to_user, content)
+         VALUES ($1, $2, $3, $4)`,
+        [communityId, fromUser, toUser, content]
+    );
 
       res.json({ success: true });
   } catch (error) {
@@ -855,12 +959,13 @@ app.post('/api/community/:id/announcement', async (req, res) => {
           return res.status(403).json({ error: "Not authorized to create announcements" });
       }
 
-      // Insert into community_messages - combine title and content
-      const fullMessage = `${title}\n\n${content}`;
-      await db.none(
-          `INSERT INTO community_messages (community_id, username, content, is_announcement) 
-           VALUES ($1, $2, $3, true)`,
-          [communityId, username, fullMessage]
+      // Insert into community_announcements
+      const newAnnouncement = await db.one(`
+          INSERT INTO community_announcements 
+          (community_id, title, content, created_by) 
+          VALUES ($1, $2, $3, $4)
+          RETURNING *`,
+          [communityId, title, content, username]
       );
 
       res.json({ success: true });
@@ -877,7 +982,7 @@ app.get('/api/user/notes', async (req, res) => {
 
   try {
       const notes = await db.any(`
-          SELECT id, title 
+          SELECT id, title, content
           FROM notes 
           WHERE username = $1
           ORDER BY title`,
@@ -889,83 +994,104 @@ app.get('/api/user/notes', async (req, res) => {
       res.status(500).json({ error: "Failed to fetch notes" });
   }
 });
-
-app.post('/api/community/:id/share-note', async (req, res) => {
-  if (!req.session.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-  }
-
+// Check if copy exists
+app.get('/api/community/:communityId/check-note-copy/:noteId', async (req, res) => {
   try {
-      const { noteId, isPublic = false } = req.body;
-      const communityId = req.params.id;
-      const username = req.session.user.username;  // Changed from user to username
+      const { communityId, noteId } = req.params;
+      const username = req.session.user.username;
 
-      // Verify note ownership and community membership
-      const [noteOwnership, community] = await Promise.all([
-          db.oneOrNone('SELECT 1 FROM notes WHERE id = $1 AND username = $2', 
-              [noteId, username]),
-          db.oneOrNone('SELECT created_by FROM communities WHERE community_id = $1', 
-              [communityId])
-      ]);
-
-      const isAdmin = community.created_by === username;
-
-      if (!noteOwnership || !isAdmin) {
-          return res.status(403).json({ error: 'Unauthorized' });
-      }
-
-      // Share note with community
-      await db.none(
-          'INSERT INTO community_notes (community_id, note_id, shared_by, is_public) VALUES ($1, $2, $3, $4)',
-          [communityId, noteId, username, isPublic]
+      // Get original note info
+      const originalNote = await db.one(`
+          SELECT title FROM notes WHERE id = $1`,
+          [noteId]
       );
 
-      res.json({ success: true });
+      // Check for existing copy
+      const copy = await db.oneOrNone(`
+          SELECT id FROM notes 
+          WHERE username = $1 
+          AND title = $2`,
+          [username, `${username}'s copy of ${originalNote.title}`]
+      );
+
+      res.json({
+          hasCopy: !!copy,
+          copyId: copy?.id
+      });
   } catch (error) {
-      console.error('Error sharing note:', error);
-      res.status(500).json({ error: 'Server error' });
+      console.error('Error checking note copy:', error);
+      res.status(500).json({ error: 'Failed to check note copy' });
   }
 });
 
-app.post('/api/community/:id/copy-note/:noteId', async (req, res) => {
+// Create copy and share with admin
+app.post('/api/community/:communityId/copy-note/:noteId', async (req, res) => {
   if (!req.session.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-      const { noteId } = req.params;
-      const communityId = req.params.id;
-      const user = req.session.user;
+      const { communityId, noteId } = req.params;
+      const username = req.session.user.username;
 
-      // Get original note and verify it's public in the community
-      const note = await db.one(`
+      // Verify the note exists and user has access
+      const noteAccess = await db.oneOrNone(`
           SELECT n.* 
           FROM notes n
-          JOIN community_notes cn ON n.id = cn.note_id
-          WHERE cn.community_id = $1 
-          AND n.id = $2 
-          AND cn.is_public = true`,
-          [communityId, noteId]
+          JOIN community_notes cn ON cn.note_id = n.id
+          WHERE n.id = $1 AND cn.community_id = $2`,
+          [noteId, communityId]
       );
 
-      // Create copy for student
-      const newNoteId = await db.one(
-          'INSERT INTO notes (title, content, username) VALUES ($1, $2, $3) RETURNING id',
-          [`Copy of ${note.title}`, note.content, user.username]
+      if (!noteAccess) {
+          return res.status(404).json({ error: 'Note not found or access denied' });
+      }
+
+      // Get original note and community info
+      const [originalNote, community] = await Promise.all([
+          db.one('SELECT * FROM notes WHERE id = $1', [noteId]),
+          db.one('SELECT created_by FROM communities WHERE community_id = $1', [communityId])
+      ]);
+
+      // Create copy with new title
+      const newTitle = `${username}'s copy of ${originalNote.title}`;
+      const newNote = await db.one(`
+          INSERT INTO notes (title, content, username, category)
+          VALUES ($1, $2, $3, $4)
+          RETURNING id`,
+          [newTitle, originalNote.content, username, originalNote.category || 'General']
       );
 
-      // Share with original note owner (teacher)
-      await db.none(
-          'INSERT INTO note_permissions (note_id, username, can_view) VALUES ($1, $2, true)',
-          [newNoteId.id, note.username]
+      // Share with community and admin
+      await db.none(`
+          INSERT INTO community_notes (note_id, community_id, shared_by, is_public)
+          VALUES ($1, $2, $3, true)`,
+          [newNote.id, communityId, username]
       );
 
-      res.json({ success: true, noteId: newNoteId.id });
+      // Share back to admin
+      await db.none(`
+          INSERT INTO note_permissions (note_id, username, can_read, can_edit)
+          VALUES ($1, $2, true, true)`,
+          [newNote.id, community.created_by]
+      );
+
+      res.json({ 
+          success: true, 
+          noteId: newNote.id, 
+          originalNoteId: noteId,
+          communityId: communityId
+
+      });
   } catch (error) {
       console.error('Error copying note:', error);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ 
+          error: 'Failed to create note copy',
+          details: error.message 
+      });
   }
 });
+
 
 // Fetch all community members (for modal view)
 app.get('/community/:id/members', async (req, res) => {
@@ -1466,8 +1592,129 @@ app.post('/share-note', async (req, res) => {
     });
   }
 });
+// Share note with community endpoint
+app.post('/api/community/:communityId/share-note', async (req, res) => {
+    try {
+        const { communityId } = req.params;
+        const { noteId } = req.body;
+        const username = req.session.user.username;
 
-// Add a route to get friendship status
+        // Check if note already shared
+        const existingShare = await db.oneOrNone(`
+            SELECT * FROM community_notes 
+            WHERE note_id = $1 AND community_id = $2`,
+            [noteId, communityId]
+        );
+
+        if (existingShare) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Note already shared with this community' 
+            });
+        }
+
+        // Share the note
+        await db.none(`
+            INSERT INTO community_notes 
+            (note_id, community_id, shared_by, shared_at, is_public)
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, true)`,
+            [noteId, communityId, username]
+        );
+
+        res.json({ 
+            success: true, 
+            message: 'Note shared successfully' 
+        });
+    } catch (error) {
+        console.error('Error sharing note:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to share note' 
+        });
+    }
+});
+
+app.get('/api/community/:communityId/messages/:username', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { communityId, username } = req.params;
+      const currentUser = req.session.user.username;
+
+      const messages = await db.any(`
+          SELECT * FROM direct_messages
+          WHERE community_id = $1
+          AND ((from_user = $2 AND to_user = $3)
+          OR (from_user = $3 AND to_user = $2))
+          ORDER BY sent_at ASC`,
+          [communityId, currentUser, username]
+      );
+
+      res.json(messages);
+  } catch (error) {
+      console.error('Error fetching messages:', error);
+      res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Sendmsg
+app.post('/api/community/:communityId/message', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { communityId } = req.params;
+      const { content, toUser } = req.body;
+      const fromUser = req.session.user.username;
+
+      await db.none(`
+          INSERT INTO direct_messages 
+          (community_id, from_user, to_user, content)
+          VALUES ($1, $2, $3, $4)`,
+          [communityId, fromUser, toUser, content]
+      );
+
+      res.json({ success: true });
+  } catch (error) {
+      console.error('Error sending message:', error);
+      res.status(500).json({ error: "Server error" });
+  }
+});
+
+//copies for admin
+app.get('/api/community/:communityId/note/:noteId/copies', async (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+      const { communityId, noteId } = req.params;
+      const originalNote = await db.one('SELECT title FROM notes WHERE id = $1', [noteId]);
+
+      const copies = await db.any(`
+          SELECT 
+              n.*,
+              u.username as student_name,
+              cn.shared_at
+          FROM notes n
+          JOIN users u ON n.username = u.username
+          JOIN community_notes cn ON n.id = cn.note_id
+          WHERE cn.community_id = $1 
+          AND n.title LIKE '%''s copy of ' || $2
+          ORDER BY u.username, cn.shared_at DESC`,
+          [communityId, originalNote.title]
+      );
+
+      res.json(copies);
+  } catch (error) {
+      console.error('Error fetching copies:', error);
+      res.status(500).json({ error: "Failed to fetch copies" });
+  }
+});
+// friendship!!!
 app.get('/friendship-status/:username', async (req, res) => {
   try {
     const currentUser = req.session.user.username;

@@ -170,10 +170,6 @@
             resize: vertical;
         }
 
-        .privacy-toggle {
-            margin-bottom: 20px;
-        }
-
         .button-group {
             display: flex;
             gap: 10px;
@@ -268,76 +264,315 @@
         .notification.hide {
             opacity: 0;
         }
+
+        .page-banner {
+            background: linear-gradient(135deg, #8cb67d 0%, #accaa1 100%);
+            padding: 40px 20px;
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .banner-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .banner-content h1 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+
+        .banner-content p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        /* Container and Grid Layouts */
+        .communities-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Split into two columns */
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .communities-section, .join-communities-section {
+            margin-bottom: 40px;
+        }
+
+        .communities-grid, .public-communities-grid {
+            display: grid;
+            grid-template-columns: 1fr;  /* Single column within each section */
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Card Styles */
+        .community-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 20px;
+            position: relative;
+            border: 1px solid #eee;
+        }
+
+        .community-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .community-card h3 {
+            color: #3c5832;
+            margin-bottom: 8px;
+            font-size: 1.2em;
+        }
+
+        .community-card p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .community-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .user-role {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-visit {
+            background-color: #8cb67d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn-visit:hover {
+            background-color: #638159;
+        }
+
+        /* Button Styles */
+        .create-btn, .join-btn {
+            background-color: #8cb67d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .create-btn:hover, .join-btn:hover {
+            background-color: #638159;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .community-form {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            padding-right: 2px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .form-group textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        .privacy-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-right: 2px;
+        }
+
+        .privacy-toggle label {
+            margin: 0;
+            font-weight: 500;
+            color: #333;
+            order: 1;
+        }
+
+        .privacy-toggle input[type="checkbox"] {
+            margin: 0;
+            order: 2;
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .privacy-hint {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .join-community-btn {
+            background-color: #8cb67d;
+            color: white;
+        }
     </style>
 <div id="notification" class="notification"></div>
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 20px;">
-    <h1>Your Communities</h1>
-    <div class="community-controls">
-        <button onclick="openCreateModal()" class="control-btn create-btn">Create Community</button>
-        <button onclick="openJoinModal()" class="control-btn join-btn">Join Private Community</button>
+<!-- Banner Section -->
+<div class="page-banner">
+    <div class="banner-content">
+        <h1>Communities</h1>
+        <p>Join or create communities to collaborate with others</p>
+        <button onclick="openCreateModal()" class="create-btn">Create New Community</button>
     </div>
 </div>
-<div class="container">
-    <!-- Community List Section -->
-    {{#if data.length}}
-    <div class="community-list">
-        {{#each data}}
-        <div class="card">
-            <h5 class="card-title"><a href="/community/{{community_id}}">{{name}}</a></h5>
-            <p class="text-muted">{{description}}</p>
-            <p class="text-muted">Members: {{member_count}}</p>
-            <div class="button-container">
-                <button class="btn-visit" onclick="visitCommunity('{{community_id}}')">Visit Community</button>
-            </div>
+
+<!-- Main Content -->
+<div class="communities-container">
+    <!-- Your Communities Section -->
+    <section class="communities-section">
+        <h2>Your Communities</h2>
+        <div class="communities-grid">
+            {{#if data.length}}
+                {{#each data}}
+                <div class="community-card">
+                    <h3><a href="/community/{{community_id}}">{{name}}</a></h3>
+                    <p>{{description}}</p>
+                    <div class="community-meta">
+                        <span class="user-role">
+                            {{#if is_admin}}
+                                Admin
+                            {{else}}
+                                Member
+                            {{/if}}
+                        </span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-visit" onclick="visitCommunity('{{community_id}}')">Visit Community</button>
+                    </div>
+                </div>
+                {{/each}}
+            {{else}}
+                <div class="no-communities-message">
+                    <p>You haven't joined any communities yet.</p>
+                    <p>Join a public community or create your own!</p>
+                </div>
+            {{/if}}
         </div>
-        {{/each}}
-    </div>
-    {{else}}
-    <div class="no-communities-message">
-        <p>You haven't joined any communities yet.</p>
-        <p>Join a public community below or create your own!</p>
-    </div>
-    {{/if}}
+    </section>
+
+    <!-- Join Communities Section -->
+    <section class="join-communities-section">
+        <div class="section-header">
+            <h2>Join Communities</h2>
+            <button onclick="openJoinModal()" class="join-btn">Join by Code</button>
+        </div>
+        
+        <div class="public-communities-grid">
+            {{#each publicCommunities}}
+            <div class="community-card">
+                <h3>{{name}}</h3>
+                <p>{{description}}</p>
+                <div class="community-meta">
+                    <span class="member-count">{{member_count}} members</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-visit" onclick="joinPublicCommunity('{{community_id}}')">Join Community</button>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </section>
 </div>
 
-
-<div class="public-communities-box">
-    <h2>Public Communities You Can Join</h2>
-    {{#each publicCommunities}}
-    <div class="public-community-card">
-        <p class="public-community-title">{{name}}</p>
-        <p class="public-community-description">{{description}}</p>
-        <button class="public-community-join" onclick="joinPublicCommunity('{{community_id}}')">Join</button>
-    </div>
-    {{/each}}
-</div>
+<!-- Enhanced Create Community Modal -->
 <div id="create-modal" class="modal-overlay">
     <div class="modal-content">
-        <h2>Create New Community</h2>
-        <form id="createCommunityForm">
-            <input type="text" id="communityName" placeholder="Community Name" required>
-            <textarea id="communityDescription" placeholder="Community Description" required></textarea>
-            <div class="privacy-toggle">
-                <label>
-                    <input type="checkbox" id="isPrivate"> Make Private
-                </label>
+        <div class="modal-header">
+            <h2>Create New Community</h2>
+            <button class="close-button" onclick="closeCreateModal()">&times;</button>
+        </div>
+        <form id="createCommunityForm" class="community-form">
+            <div class="form-group">
+                <label for="communityName">Community Name</label>
+                <input type="text" id="communityName" placeholder="Enter community name" required>
             </div>
-            <div class="button-group">
-                <button type="submit" class="btn-submit">Create</button>
-                <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
+            
+            <div class="form-group">
+                <label for="communityDescription">Description</label>
+                <textarea id="communityDescription" placeholder="Describe your community..." required></textarea>
             </div>
-        </form>
-    </div>
-</div>
 
-<div id="join-modal" class="modal-overlay">
-    <div class="modal-content">
-        <h2>Join Private Community</h2>
-        <form id="joinCommunityForm" onsubmit="handleJoinSubmit(event)">
-            <input type="text" id="accessCode" placeholder="Enter Community Code" required>
-            <div class="button-group">
-                <button type="submit" class="btn-submit">Join</button>
-                <button type="button" class="btn-cancel" onclick="closeJoinModal()">Cancel</button>
+            <div class="form-group">
+                <label for="privacyType">Privacy Setting</label>
+                <select id="privacyType" class="form-control">
+                    <option value="public">Public Community</option>
+                    <option value="private">Private Community (requires access code)</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">Create Community</button>
+                <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
             </div>
         </form>
     </div>
@@ -400,7 +635,7 @@
         e.preventDefault();
         const name = document.getElementById('communityName').value;
         const description = document.getElementById('communityDescription').value;
-        const isPrivate = document.getElementById('isPrivate').checked;
+        const isPrivate = document.getElementById('privacyType').value === 'private';
 
         fetch('/create-community', {
             method: 'POST',

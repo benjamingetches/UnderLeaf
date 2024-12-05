@@ -545,7 +545,24 @@
         </div>
     </section>
 </div>
-
+<div id="join-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Join Community</h2>
+            <button class="close-button" onclick="closeJoinModal()">&times;</button>
+        </div>
+        <form id="joinCommunityForm" onsubmit="handleJoinSubmit(event)">
+            <div class="form-group">
+                <label for="accessCode">Access Code</label>
+                <input type="text" id="accessCode" placeholder="Enter access code" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">Join Community</button>
+                <button type="button" class="btn-cancel" onclick="closeJoinModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
 <!-- Enhanced Create Community Modal -->
 <div id="create-modal" class="modal-overlay">
     <div class="modal-content">

@@ -554,11 +554,13 @@ app.get('/communities', async (req, res) => {
 
     // Query for user's communities
     let userCommunitiesQuery = `
-      SELECT c.* 
-      FROM communities c
-      INNER JOIN community_memberships cm 
-        ON c.community_id = cm.community_id 
-      WHERE cm.username = $1`;
+    SELECT 
+      c.*,
+      CASE WHEN c.created_by = $1 THEN true ELSE false END as is_admin
+    FROM communities c
+    INNER JOIN community_memberships cm 
+      ON c.community_id = cm.community_id 
+    WHERE cm.username = $1`;
     
     // Query for public communities the user hasn't joined
     let publicCommunitiesQuery = `

@@ -522,11 +522,13 @@
     .notification.show {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
+        z-index: 1500;
     }
 
     .notification.hide {
         opacity: 0;
         transform: translateX(-50%) translateY(-20px);
+        z-index: -1;
     }
 
     .copy-btn {

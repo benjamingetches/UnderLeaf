@@ -887,38 +887,41 @@ function getSelectedHtml() {
 
       // Create and show the sharing modal
       const modalHtml = `
-        <div class="modal fade" id="shareModal" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">Share Note</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">
-                <form id="shareForm">
-                  <div class="mb-3">
-                    <label class="form-label">Share with:</label>
-                    <select class="form-select" id="shareWith" required>
-                      <option value="">Select a friend</option>
-                      ${friends.map(friend => 
-                        `<option value="${friend.friend_username}">${friend.friend_username}</option>`
-                      ).join('')}
-                    </select>
-                  </div>
-                  <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="canEdit">
-                    <label class="form-check-label" for="canEdit">Allow editing</label>
-                  </div>
-                </form>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmShare">Share</button>
-              </div>
-            </div>
-          </div>
+  <div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Share Note</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-      `;
+        <div class="modal-body">
+          <form id="shareForm">
+            <div class="mb-3">
+              <label class="form-label">Share with:</label>
+              <select class="form-select" id="shareWith" required>
+                <option value="">Select a friend</option>
+                ${friends.map(friend => 
+                  `<option value="${friend.friend_username}">${friend.friend_username}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Permission level:</label>
+              <select class="form-select" id="permissionLevel">
+                <option value="view">View only</option>
+                <option value="edit">Can edit</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirmShare">Share</button>
+        </div>
+      </div>
+    </div>
+  </div>
+`;
 
       // Add modal to document
       document.body.insertAdjacentHTML('beforeend', modalHtml);
@@ -928,7 +931,7 @@ function getSelectedHtml() {
       // Handle share confirmation
       document.getElementById('confirmShare').addEventListener('click', async () => {
         const shareWith = document.getElementById('shareWith').value;
-        const canEdit = document.getElementById('canEdit').checked;
+        const canEdit = document.getElementById('permissionLevel').value === 'edit';
 
         if (!shareWith) {
           showNotification('Please select a friend to share with.');

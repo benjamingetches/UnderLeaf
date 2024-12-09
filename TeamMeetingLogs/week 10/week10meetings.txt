@@ -1,0 +1,8 @@
+In week 10, we focused on the following;
+CNN for character recognition, NODE js routes for backend, and the UI for the editor. Also friends page, and start of communities page
+Checked in with TA, all seems good. Ben to meet with TA to discuss the CNN
+Other than that, no major updates
+
+Issues to do: Dark mode
+Friends not adding correctly
+friends sharing notes

@@ -1,0 +1,11 @@
+On sunday:
+Met with group, discussed the current state of the project, and the current issues
+got a ton of issues fixed
+dropped CNN, wasnt efficient or would work correctly
+
+
+MET with TA tuesday,
+informed of pivot off CNN,
+worked on openAI API routes, building communities page, and friends page
+
+On track to be done!

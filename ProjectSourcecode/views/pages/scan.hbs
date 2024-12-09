@@ -293,7 +293,7 @@
                     </div>
                 </div>
                 <div id="previewContainer">
-                    <!-- Previews will be added here -->
+                    <!-- Previews go here -->
                 </div>
                 <button type="submit" class="btn btn-primary mt-4 px-4">
                     <i class="fas fa-magic me-2"></i>Process Images
@@ -524,8 +524,8 @@ async function processAllImages() {
                 body: JSON.stringify({
                     title: document.getElementById('noteTitle').value,
                     content: processedLatexContent,
-                    username: '{{user.username}}',
-                    category: document.getElementById('category').value
+                    category: 'LaTeX',
+                    username: '{{user.username}}'
                 })
             });
 
@@ -536,7 +536,7 @@ async function processAllImages() {
                 sessionStorage.setItem('note_content', processedLatexContent);
                 sessionStorage.setItem('note_title', document.getElementById('noteTitle').value);
                 sessionStorage.setItem('note_id', data.noteId);
-                
+
                 showNotification('Note saved successfully!', true);
                 setTimeout(() => {
                     window.location.href = `/editor?loadNote=true`;

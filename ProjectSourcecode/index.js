@@ -98,7 +98,7 @@ const transporter = nodemailer.createTransport({
 
 // sql config
 const dbConfig = {
-  host: 'db', //dpg-csvpgvilqhvc73bgrnu0-a
+  host: 'dpg-csvpgvilqhvc73bgrnu0-a', //dpg-csvpgvilqhvc73bgrnu0-a
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with

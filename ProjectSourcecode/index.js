@@ -98,7 +98,7 @@ const transporter = nodemailer.createTransport({
 
 // sql config
 const dbConfig = {
-  host: 'dpg-csvpgvilqhvc73bgrnu0-a',
+  host: 'db', //dpg-csvpgvilqhvc73bgrnu0-a
   port: 5432, // the database port
   database: process.env.POSTGRES_DB, // the database name
   user: process.env.POSTGRES_USER, // the user account to connect with
@@ -490,7 +490,7 @@ app.get('/edit-note/:id', async (req, res) => {
 app.get('/notes', async (req, res) => {
   const user = req.session.user;
   try {
-      // Fetch user's own notes
+      
       const userNotes = await db.any(`
           SELECT DISTINCT n.id, n.title, n.username, 
                  true as can_edit,
@@ -501,7 +501,7 @@ app.get('/notes', async (req, res) => {
           [user.username]
       );
 
-      // Fetch notes shared with the user (Friends' Notes)
+      
       const friendsNotes = await db.any(`
           SELECT DISTINCT n.id, n.title, n.username, 
                  np.can_edit, 
@@ -514,7 +514,7 @@ app.get('/notes', async (req, res) => {
           [user.username]
       );
 
-      // Get friend count and pending request count for navbar
+      
       const friendCount = await db.one(`
           SELECT COUNT(*) as count
           FROM friends
@@ -530,7 +530,7 @@ app.get('/notes', async (req, res) => {
           [user.username]
       );
 
-      // Render the notes page, passing both userNotes and friendsNotes separately
+      
       res.render('pages/notes', { 
           user, 
           notes: userNotes,
@@ -908,7 +908,7 @@ app.get('/community/:id', async (req, res) => {
           personalNotes,
           teacherNotes,
           isAdmin: community.isAdmin,
-            // Add these for navbar
+          
           user: req.session.user,
           username: req.session.user.username,
           announcements,

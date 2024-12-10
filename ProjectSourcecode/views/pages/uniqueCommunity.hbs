@@ -228,7 +228,7 @@
             <button onclick="closeModal('shareNoteModal')" class="close-button">&times;</button>
         </div>
         <div id="userNotesList" class="notes-list">
-            <!-- Notes will be populated here -->
+            <!-- Notes populated here -->
         </div>
     </div>
 </div>
@@ -239,7 +239,7 @@
             <button onclick="closeModal('viewCopiesModal')" class="close-button">&times;</button>
         </div>
         <div id="copiesList" class="copies-list">
-            <!-- Copies will be loaded here -->
+            <!-- Copies loaded here -->
         </div>
     </div>
 </div>
@@ -295,7 +295,7 @@
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     }
 
-    /* Section Styling */
+
     .admin-section, .announcements-panel, .notes-panel, .messages-panel {
         background: white;
         border-radius: 8px;
@@ -303,7 +303,7 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Cards */
+
     .announcement-card, .note-card {
         background: #f8f9fa;
         border-radius: 6px;
@@ -647,7 +647,7 @@
     #creditsInfoModal,
     #noCreditsModal .modal-content,
     #creditsInfoModal .modal-content {
-        z-index: -1 !important;  /* Using !important to override any existing z-index */
+        z-index: -1 !important;  /* Using !important to override any existing z-index , idk if needed but it works!!!*/
         display: none !important;
     }
     .btn-sm {
@@ -1122,7 +1122,7 @@ async function shareNote(noteId) {
     }
 }
 
-// Add modal-specific styles
+
 document.head.insertAdjacentHTML('beforeend', `
 <style>
 .modal {
@@ -1184,8 +1184,7 @@ document.head.insertAdjacentHTML('beforeend', `
 `);
 
 
-//Start of user sided functions
-//TODO: change alerts to notifications
+
 async function copyAndViewNote(noteId) {
     if (!noteId) {
         showNotification('Error: Note ID is missing');
@@ -1236,7 +1235,7 @@ async function copyAndViewNote(noteId) {
     }
 }
 function updateUIAfterCopy(originalNoteId) {
-    // Update copy count in admin view
+    // Update copy count in admin view need this to be updated
     const noteCard = document.querySelector(`[data-note-id="${originalNoteId}"]`);
     if (noteCard) {
         const copyCountSpan = noteCard.querySelector('.copy-count');
@@ -1304,7 +1303,7 @@ function displayMessages(messages) {
     messageDisplay.scrollTop = messageDisplay.scrollHeight;
 }
 
-// Helper function to escape HTML and prevent XSS
+//escape html to be safe: source some yt vid 
 function escapeHtml(unsafe) {
     return unsafe
         .replace(/&/g, "&amp;")
@@ -1326,7 +1325,7 @@ async function viewCopies(noteId) {
         const copies = await response.json();
         displayCopies(copies);
         
-        // Show modal with flex display
+
         const modal = document.getElementById('viewCopiesModal');
         modal.style.display = 'flex';
     } catch (error) {
@@ -1365,7 +1364,7 @@ async function sendMessage(toUser = null) {
     
     if (!content) return;
     
-    // For admin view, use selectedUser, for student view use passed toUser
+    // For admin view, use selectedUser, for student view use passed toUser. so we see different side
     const recipient = toUser || selectedUser;
     
     if (!recipient) {
@@ -1387,14 +1386,14 @@ async function sendMessage(toUser = null) {
             throw new Error('Failed to send message');
         }
         
-        // Clear input
+        
         input.value = '';
         
-        // Reload messages
+       
         if (selectedUser) {
             await loadMessages(selectedUser);
         } else {
-            // For student view, append message locally
+            
             const messageDisplay = document.getElementById('messageDisplay');
             const newMessage = document.createElement('div');
             newMessage.className = 'message sent';
@@ -1422,10 +1421,10 @@ function formatDate(dateString) {
     });
 }
 
-// Add this to periodically check for new messages
+
 setInterval(async () => {
     if (selectedUser) {
         await loadMessages(selectedUser);
     }
-}, 10000); // Check every 5 seconds
+}, 10000); // Check every 5 seconds, so we dont have to websocket bc im too dumb for that 
 </script>

@@ -29,7 +29,7 @@
         color: #638159;
     }
         
-        /* Sidebar and Toggle Styling */
+        
         .sidebar-container {
             position: fixed;
             right: 0;
@@ -63,7 +63,7 @@
             display: none;
         }
         
-        /* Sidebar buttons */
+        
         .sidebar button {
             width: 100%;
             padding: 10px;
@@ -92,7 +92,7 @@
             color: white;
         }
 
-        /* Public Communities Box */
+        
         .public-communities-box {
             width: 100%;
             margin: 20px 0;
@@ -128,7 +128,7 @@
         .public-community-join:hover {
             background-color: #638159;
         }
-        /* Modal Styling */
+        
         .modal-overlay {
             display: none;
             position: fixed;
@@ -267,7 +267,7 @@
             z-index: -1;
         }
 
-        .page-banner {
+        .page-banner { 
             background: linear-gradient(135deg, #8cb67d 0%, #accaa1 100%);
             padding: 40px 20px;
             color: white;
@@ -291,7 +291,7 @@
             margin-bottom: 20px;
         }
 
-        /* Container and Grid Layouts */
+       
         .communities-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -313,7 +313,7 @@
             margin-top: 20px;
         }
 
-        /* Card Styles */
+        
         .community-card {
             background: white;
             border-radius: 10px;
@@ -395,7 +395,7 @@
             background-color: #638159;
         }
 
-        /* Modal Styles */
+        
         .modal-overlay {
             background: rgba(0, 0, 0, 0.5);
             padding: 20px;
@@ -490,7 +490,7 @@
 
 <!-- Main Content -->
 <div class="communities-container">
-    <!-- Your Communities Section -->
+    
     <section class="communities-section">
         <h2>Your Communities</h2>
         <div class="communities-grid">
@@ -522,7 +522,7 @@
         </div>
     </section>
 
-    <!-- Join Communities Section -->
+    
     <section class="join-communities-section">
         <div class="section-header">
             <h2>Join Communities</h2>
@@ -563,7 +563,7 @@
         </form>
     </div>
 </div>
-<!-- Enhanced Create Community Modal -->
+
 <div id="create-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
@@ -598,7 +598,7 @@
 </div>
 
 <script>
-    // Toggle sidebar visibility
+    
     function toggleSidebar() {
         const sidebar = document.getElementById("sidebar");
         const toggleButton = document.getElementById("toggleSidebarBtn");
@@ -613,7 +613,7 @@
             document.removeEventListener("click", closeSidebarOnOutsideClick);
         }
     }
-    // listener for closing sidebar on outside click
+    // listener for closing sidebar on outside clicks only
     function closeSidebarOnOutsideClick(event) {
         const sidebar = document.getElementById("sidebar");
         const toggleButton = document.getElementById("toggleSidebarBtn");
@@ -638,7 +638,7 @@
         })
         .then(response => {
             if (response.ok) {
-                // Reload the page to show updated communities
+                
                 window.location.reload();
             } else {
                 throw new Error('Failed to join community');
@@ -684,7 +684,7 @@
         });
     });
 
-    // Join Community Form Handler
+   
     async function handleJoinSubmit(event) {
         event.preventDefault();
         const accessCode = document.getElementById('accessCode').value.trim();
@@ -734,7 +734,7 @@
         document.getElementById("join-modal").style.display = "none";
     }
 
-    // Close modals when clicking outside
+    
     window.onclick = function(event) {
         if (event.target.classList.contains('modal-overlay')) {
             event.target.style.display = "none";
